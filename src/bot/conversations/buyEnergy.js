@@ -3,7 +3,12 @@ import { formatTrx, formatUsd } from "../format.js";
 import { savingsVersusBaseline } from "../savings.js";
 import { formatUserError } from "../errors.js";
 import { isValidTronAddress } from "../tronAddress.js";
-import { BUY_ENERGY_LABEL, mainMenuKeyboard, removeKeyboardMarkup } from "../menu.js";
+import {
+  BUY_ENERGY_LABEL,
+  mainMenuKeyboard,
+  mainMenuKeyboardForTelegramUser,
+  removeKeyboardMarkup,
+} from "../menu.js";
 import { log } from "../../logger.js";
 
 const CB = {
@@ -162,6 +167,14 @@ export function createBuyEnergyConversation(deps) {
     const rmMsg = await ctx.reply("\u2060", { reply_markup: removeKeyboardMarkup });
     await ctx.api.deleteMessage(rmMsg.chat.id, rmMsg.message_id).catch(() => {});
 
+    /** @param {number | undefined} fromId */
+    async function menuKb(fromId) {
+      if (fromId == null) return mainMenuKeyboard({ affiliate: false });
+      return await conversation.external(async () =>
+        mainMenuKeyboardForTelegramUser(deps.api, fromId),
+      );
+    }
+
     /** @type {number | null} */
     let energy = DEFAULT_ENERGY;
     /** @type {import("../../api/tronFeesClient.js").PricingEstimate | null} */
@@ -217,7 +230,9 @@ export function createBuyEnergyConversation(deps) {
               return;
             }
             if (t && isCancelText(t)) {
-              await oc.reply("Оформление отменено.", { reply_markup: mainMenuKeyboard() });
+              await oc.reply("Оформление отменено.", {
+                reply_markup: await menuKb(oc.from?.id),
+              });
               await conversation.halt();
               return;
             }
@@ -232,7 +247,9 @@ export function createBuyEnergyConversation(deps) {
         } catch {
           /* ignore */
         }
-        await ctx.reply("Время вышло. Начните снова.", { reply_markup: mainMenuKeyboard() });
+        await ctx.reply("Время вышло. Начните снова.", {
+          reply_markup: await menuKb(ctx.from?.id),
+        });
         return;
       }
 
@@ -245,7 +262,9 @@ export function createBuyEnergyConversation(deps) {
         } catch {
           /* ignore */
         }
-        await q.reply("Оформление отменено.", { reply_markup: mainMenuKeyboard() });
+        await q.reply("Оформление отменено.", {
+          reply_markup: await menuKb(q.from?.id),
+        });
         return;
       }
 
@@ -260,7 +279,9 @@ export function createBuyEnergyConversation(deps) {
         await q.answerCallbackQuery().catch(() => {});
         buyer = q.from ?? null;
         if (!buyer) {
-          await q.reply("Не удалось определить пользователя.", { reply_markup: mainMenuKeyboard() });
+          await q.reply("Не удалось определить пользователя.", {
+            reply_markup: await menuKb(q.from?.id),
+          });
           return;
         }
         try {
@@ -302,7 +323,9 @@ export function createBuyEnergyConversation(deps) {
     }
 
     if (!buyer) {
-      await ctx.reply("Не удалось определить пользователя.", { reply_markup: mainMenuKeyboard() });
+      await ctx.reply("Не удалось определить пользователя.", {
+        reply_markup: await menuKb(ctx.from?.id),
+      });
       return;
     }
 
@@ -326,7 +349,9 @@ export function createBuyEnergyConversation(deps) {
         return;
       }
       if (isCancelText(text)) {
-        await addrCtx.reply("Оформление отменено.", { reply_markup: mainMenuKeyboard() });
+        await addrCtx.reply("Оформление отменено.", {
+          reply_markup: await menuKb(addrCtx.from?.id),
+        });
         return;
       }
       if (text === BUY_ENERGY_LABEL) {
@@ -370,12 +395,14 @@ export function createBuyEnergyConversation(deps) {
           "",
           `🧾 Order ID: ${escapeHtml(o.orderId)}`,
         ].join("\n"),
-        { parse_mode: "HTML", reply_markup: mainMenuKeyboard() },
+        { parse_mode: "HTML", reply_markup: await menuKb(replyCtx.from?.id) },
       );
       log.info("order_ok", { telegramId: buyer.id, orderId: o.orderId });
     } catch (e) {
       log.error(e);
-      await replyCtx.reply(formatUserError(e), { reply_markup: mainMenuKeyboard() });
+      await replyCtx.reply(formatUserError(e), {
+        reply_markup: await menuKb(replyCtx.from?.id),
+      });
     }
   };
 }

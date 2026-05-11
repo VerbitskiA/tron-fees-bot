@@ -19,6 +19,15 @@
 
 Везде, где нужен ключ, бот должен отправлять `X-Api-Key` на каждый запрос.
 
+### Ссылка-приглашение в Telegram (рефералы)
+
+Чтобы в ответах появлялось поле **`referralTelegramUrl`** (полная ссылка `https://t.me/<бот>?start=aff_...`), на бэкенде должен быть задан **username бота без `@`**:
+
+- переменная окружения **`TRONFEES_TELEGRAM_BOT_USERNAME`**, или
+- конфигурация **`Api:TelegramBotUsername`**.
+
+Если значение пустое, `referralTelegramUrl` в JSON будет **`null`**, при этом **`referralCode`** и **`deepLinkSuffix`** по-прежнему возвращаются там, где применимо.
+
 ## Формат запросов и ответов
 
 - Тело запросов: **`Content-Type: application/json`**.
@@ -54,7 +63,31 @@
 
 ---
 
-## 2. Привязка TRON-адреса
+## 2. Профиль пользователя (me)
+
+**`GET /api/users/me/by-telegram/{telegramUserId}`** (нужен `X-Api-Key`)
+
+`telegramUserId` в пути — Telegram ID пользователя (как правило, текущий пользователь бота).
+
+### Ответ 200
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `userId` | GUID | внутренний идентификатор |
+| `telegramId` | long | Telegram ID |
+| `telegramUsername` | string \| null | сохранённый username |
+| `registeredAt` | string (ISO 8601) | время регистрации |
+| `role` | string | **`User`** или **`Affiliate`** |
+| `referralCode` | string \| null | код без префикса `aff_` (только для аффилиата) |
+| `referralTelegramUrl` | string \| null | полная ссылка для шаринга в Telegram; **`null`**, если не аффилиат, нет кода или не задан `TelegramBotUsername` |
+
+### Ошибки
+
+**404** — пользователь с таким Telegram ID не найден.
+
+---
+
+## 3. Привязка TRON-адреса
 
 **`POST /api/users/addresses`** (нужен `X-Api-Key`)
 
@@ -71,7 +104,7 @@
 
 ---
 
-## 3. Оценка цены делегации энергии
+## 4. Оценка цены делегации энергии
 
 **`GET /api/energy-delegation/pricing-estimate`** (нужен `X-Api-Key`)
 
@@ -101,7 +134,7 @@
 
 ---
 
-## 4. Создание заказа делегации (инвойс NOWPayments)
+## 5. Создание заказа делегации (инвойс NOWPayments)
 
 **`POST /api/energy-delegation/orders`** (нужен `X-Api-Key`)
 
@@ -136,7 +169,7 @@
 
 ---
 
-## 5. Реферальная статистика (пригласивший)
+## 6. Реферальная статистика (пригласивший)
 
 **`GET /api/admin/users/by-telegram/{telegramUserId}/referrer-statistics`** (нужен `X-Api-Key`)
 
@@ -156,7 +189,7 @@
 
 ---
 
-## 6. Админ: роль аффилиата (опционально)
+## 7. Админ: роль аффилиата (опционально)
 
 **`POST /api/admin/users/{userId}/affiliate`** (нужен `X-Api-Key`)
 
@@ -174,14 +207,14 @@
 
 | Код | Тело / смысл |
 |-----|----------------|
-| **200** | `{ "referralCode": "...", "deepLinkSuffix": "aff_..." }` |
+| **200** | `{ "referralCode": "...", "deepLinkSuffix": "aff_...", "referralTelegramUrl": "https://t.me/..." \| null }` — `referralTelegramUrl` заполняется при настроенном `TelegramBotUsername` |
 | **404** | пользователь не найден |
 | **409** | `{ "message": "Referral code is already in use." }` |
 | **400** | невалидный запрошенный код (Problem JSON) |
 
 ---
 
-## 7. Админ: политика вознаграждения реферера (опционально)
+## 8. Админ: политика вознаграждения реферера (опционально)
 
 **`PUT /api/admin/referrer-reward-policies/{referrerUserId}`** (нужен `X-Api-Key`)
 
@@ -207,10 +240,11 @@
 ## Рекомендуемый поток для бота
 
 1. При `/start` (и при необходимости повторно) — **`POST /api/users/register`** с `telegramId`; при наличии реферала — `referralStartPayload` или `invitedByTelegramId`. Сохранить **`userId`**.
-2. При сохранении кошелька пользователя — **`POST /api/users/addresses`** с сохранённым `userId`.
-3. Перед покупкой энергии — **`GET /api/energy-delegation/pricing-estimate`**.
-4. Создание оплаты — **`POST /api/energy-delegation/orders`** с **`telegramUserId`** = текущий Telegram ID пользователя.
-5. Экран «мои рефералы» для блогера — **`GET /api/admin/users/by-telegram/{telegramUserId}/referrer-statistics`**.
+2. Для экрана «профиль / реферальная ссылка» — **`GET /api/users/me/by-telegram/{telegramUserId}`**.
+3. При сохранении кошелька пользователя — **`POST /api/users/addresses`** с сохранённым `userId`.
+4. Перед покупкой энергии — **`GET /api/energy-delegation/pricing-estimate`**.
+5. Создание оплаты — **`POST /api/energy-delegation/orders`** с **`telegramUserId`** = текущий Telegram ID пользователя.
+6. Экран «мои рефералы» для блогера — **`GET /api/admin/users/by-telegram/{telegramUserId}/referrer-statistics`**.
 
 ---
 

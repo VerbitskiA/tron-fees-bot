@@ -1,7 +1,7 @@
 import { log } from "../../logger.js";
 import { commandArgs } from "../commandArgs.js";
 import { formatUserError } from "../errors.js";
-import { mainMenuKeyboard } from "../menu.js";
+import { mainMenuKeyboardForTelegramUser } from "../menu.js";
 
 /**
  * @param {import("grammy").Context} ctx
@@ -36,9 +36,10 @@ export async function handleStart(ctx, deps) {
     });
 
     const name = from.first_name ?? "друг";
+    const menu = await mainMenuKeyboardForTelegramUser(deps.api, from.id);
     await ctx.reply(
       `Привет, ${name}! 👋\n\n💰 С нашим сервисом ты сможешь сэкономить на комиссиях — используй меню внизу 👇`,
-      { reply_markup: mainMenuKeyboard() },
+      { reply_markup: menu },
     );
     log.info("start_ok", { telegramId: from.id, userId });
   } catch (e) {

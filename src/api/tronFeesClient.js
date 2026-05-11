@@ -138,6 +138,15 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
     /**
      * @param {number} telegramUserId
      */
+    async getMeByTelegram(telegramUserId) {
+      return /** @type {Promise<UserMeProfile>} */ (
+        request(`/api/users/me/by-telegram/${telegramUserId}`)
+      );
+    },
+
+    /**
+     * @param {number} telegramUserId
+     */
     async getReferrerStatistics(telegramUserId) {
       return /** @type {Promise<ReferrerStatistics>} */ (
         request(
@@ -177,6 +186,18 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
  *   referralRewardCreditCount: number;
  *   totalReferralRewardSun: number;
  * }} ReferrerStatistics
+ */
+
+/**
+ * @typedef {{
+ *   userId: string;
+ *   telegramId: number;
+ *   telegramUsername: string | null;
+ *   registeredAt: string;
+ *   role: string;
+ *   referralCode: string | null;
+ *   referralTelegramUrl: string | null;
+ * }} UserMeProfile
  */
 
 /** @typedef {ReturnType<typeof createTronFeesClient>} TronFeesApi */
