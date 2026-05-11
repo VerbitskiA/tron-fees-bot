@@ -1,0 +1,48 @@
+import { log } from "../../logger.js";
+import { commandArgs } from "../commandArgs.js";
+import { formatUserError } from "../errors.js";
+import { mainMenuKeyboard } from "../menu.js";
+
+/**
+ * @param {import("grammy").Context} ctx
+ * @param {{ api: import("../../api/tronFeesClient.js").TronFeesApi }} deps
+ */
+export async function handleStart(ctx, deps) {
+  const from = ctx.from;
+  if (!from) {
+    await ctx.reply("Не удалось определить профиль Telegram.");
+    return;
+  }
+
+  const { args } = commandArgs(ctx);
+  const raw = args.length > 0 ? args.join(" ").trim() : null;
+
+  let referralStartPayload = null;
+  let invitedByTelegramId = null;
+  if (raw) {
+    if (/^\d+$/.test(raw)) {
+      invitedByTelegramId = Number(raw);
+    } else {
+      referralStartPayload = raw;
+    }
+  }
+
+  try {
+    const { userId } = await deps.api.registerUser({
+      telegramId: from.id,
+      invitedByTelegramId,
+      telegramUsername: from.username ?? null,
+      referralStartPayload,
+    });
+
+    const name = from.first_name ?? "друг";
+    await ctx.reply(
+      `Привет, ${name}! 👋\n\n💰 С нашим сервисом ты сможешь сэкономить на комиссиях — используй меню внизу 👇`,
+      { reply_markup: mainMenuKeyboard() },
+    );
+    log.info("start_ok", { telegramId: from.id, userId });
+  } catch (e) {
+    log.error(e);
+    await ctx.reply(formatUserError(e));
+  }
+}
