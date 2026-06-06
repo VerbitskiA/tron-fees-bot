@@ -15,7 +15,7 @@ export async function handleHelp(ctx, deps) {
       "<b>Help &amp; support</b>",
       "",
       "For any questions or consultation about the service, contact support:",
-      "@tron_fees_support",
+      "@tron_volt_support",
       "",
       "API access, TronFees integration into your service or product — write there as well; we will guide you and agree on the details.",
     ].join("\n"),
