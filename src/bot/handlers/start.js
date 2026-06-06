@@ -10,7 +10,7 @@ import { mainMenuKeyboardForTelegramUser } from "../menu.js";
 export async function handleStart(ctx, deps) {
   const from = ctx.from;
   if (!from) {
-    await ctx.reply("Не удалось определить профиль Telegram.");
+    await ctx.reply("Could not identify your Telegram profile.");
     return;
   }
 
@@ -35,10 +35,10 @@ export async function handleStart(ctx, deps) {
       referralStartPayload,
     });
 
-    const name = from.first_name ?? "друг";
+    const name = from.first_name ?? "friend";
     const menu = await mainMenuKeyboardForTelegramUser(deps.api, from.id);
     await ctx.reply(
-      `Привет, ${name}! 👋\n\n💰 С нашим сервисом ты сможешь сэкономить на комиссиях — используй меню внизу 👇`,
+      `Hi, ${name}! 👋\n\n💰 Save on TRON fees with TronFees — use the menu below 👇`,
       { reply_markup: menu },
     );
     log.info("start_ok", { telegramId: from.id, userId });

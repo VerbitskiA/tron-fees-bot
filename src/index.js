@@ -13,8 +13,8 @@ async function main() {
   const bot = createBot(config.botToken, deps);
 
   await bot.api.setMyCommands([
-    { command: "start", description: "Начать работу с ботом" },
-    { command: "help", description: "Помощь и поддержка" },
+    { command: "start", description: "Get started with the bot" },
+    { command: "help", description: "Help and support" },
   ]);
 
   log.info("starting bot…");

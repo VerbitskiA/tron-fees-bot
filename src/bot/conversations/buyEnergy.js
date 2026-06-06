@@ -10,6 +10,14 @@ import {
   removeKeyboardMarkup,
 } from "../menu.js";
 import { log } from "../../logger.js";
+import { handleHelp } from "../handlers/help.js";
+
+/**
+ * @param {string} text
+ */
+function isHelpCommand(text) {
+  return /^\/help(?:@\w+)?$/i.test(text.trim());
+}
 
 const CB = {
   energy: (/** @type {number} */ e) => `pk:e:${e}`,
@@ -30,7 +38,7 @@ const ALL_PACKAGE_CALLBACKS = [CB.next, CB.abort, ...ENERGY_CHOICES.map((e) => C
  * @param {string} text
  */
 function isCancelText(text) {
-  return text.trim().toLowerCase() === "отмена";
+  return text.trim().toLowerCase() === "cancel";
 }
 
 /** @param {string} s */
@@ -48,8 +56,8 @@ function savingsBlockLinesHtml(energy, estimate) {
   const s = savingsVersusBaseline(energy, estimate.clientPriceTrx);
   if (!s) return [];
   return [
-    `<i>📊 Без сервиса ориентировочно: ${escapeHtml(formatTrx(s.baseline))} TRX</i>`,
-    `<i>💚 Экономия: ${escapeHtml(formatTrx(s.saveTrx))} TRX (~${escapeHtml(formatUsd(s.saveUsd))})</i>`,
+    `<i>Without TronFees (approx.): ${escapeHtml(formatTrx(s.baseline))} TRX</i>`,
+    `<i>Savings: ${escapeHtml(formatTrx(s.saveTrx))} TRX (~${escapeHtml(formatUsd(s.saveUsd))})</i>`,
   ];
 }
 
@@ -62,11 +70,11 @@ function savingsBlockLinesHtml(energy, estimate) {
 function buildAddressStepMessage(energy, estimate) {
   const savings = savingsBlockLinesHtml(energy ?? null, estimate);
   const parts = [
-    escapeHtml("📦 Выбранный пакет"),
+    escapeHtml("📦 Selected package"),
     "",
-    escapeHtml(`• Объём энергии: ${energy?.toLocaleString("ru-RU") ?? "—"}`),
-    escapeHtml(`• Срок делегирования: ${DELEGATION_DURATION_HOURS} ч`),
-    escapeHtml(`• Стоимость через сервис: ${formatTrx(estimate.clientPriceTrx)} TRX`),
+    escapeHtml(`• Energy amount: ${energy?.toLocaleString("en-US") ?? "—"}`),
+    escapeHtml(`• Delegation period: ${DELEGATION_DURATION_HOURS} h`),
+    escapeHtml(`• TronFees price: ${formatTrx(estimate.clientPriceTrx)} TRX`),
   ];
   if (savings.length > 0) {
     parts.push("");
@@ -75,7 +83,7 @@ function buildAddressStepMessage(energy, estimate) {
   parts.push(
     "",
     escapeHtml(
-      "На какой TRON-адрес делегировать энергию? Отправьте адрес одним следующим сообщением.",
+      "Which TRON address should receive the energy? Send the address in your next message.",
     ),
   );
   return {
@@ -92,39 +100,39 @@ function buildAddressStepMessage(energy, estimate) {
  */
 function buildPackageMessage(energy, estimate, estimateError) {
   const lines = [
-    escapeHtml("⚡ Выберите объём энергии."),
+    escapeHtml("⚡ Choose an energy amount."),
     "",
     escapeHtml(
-      `🔋 Энергия: ${energy != null ? energy.toLocaleString("ru-RU") : "—"}`,
+      `🔋 Energy: ${energy != null ? energy.toLocaleString("en-US") : "—"}`,
     ),
-    escapeHtml(`⏱ Срок: ${DELEGATION_DURATION_HOURS} ч`),
+    escapeHtml(`⏱ Duration: ${DELEGATION_DURATION_HOURS} h`),
     "",
   ];
   if (estimateError) {
     lines.push(
-      escapeHtml("⚠️ Не удалось посчитать цену."),
+      escapeHtml("⚠️ Could not calculate the price."),
       escapeHtml(estimateError),
       "",
-      escapeHtml("Измените параметры или нажмите «Отмена»."),
+      escapeHtml("Change the options or tap Cancel."),
       "",
     );
     return { text: lines.join("\n").trimEnd() };
   }
   if (estimate) {
-    lines.push(escapeHtml(`💳 Цена через сервис: ${formatTrx(estimate.clientPriceTrx)} TRX`));
+    lines.push(escapeHtml(`💳 TronFees price: ${formatTrx(estimate.clientPriceTrx)} TRX`));
     const savings = savingsBlockLinesHtml(energy, estimate);
     if (savings.length > 0) {
       lines.push("");
       lines.push(...savings);
     }
-    lines.push("", escapeHtml("👉 Нажмите «Продолжить», чтобы подтвердить пакет и указать адрес."));
+    lines.push("", escapeHtml("👉 Tap Continue to confirm the package and enter an address."));
     return {
       text: lines.join("\n").trimEnd(),
       ...(savings.length > 0 ? { parse_mode: /** @type {const} */ ("HTML") } : {}),
     };
   }
   if (energy != null) {
-    lines.push(escapeHtml("⏳ Считаем цену…"), "");
+    lines.push(escapeHtml("⏳ Calculating price…"), "");
   }
   return { text: lines.join("\n").trimEnd() };
 }
@@ -137,13 +145,13 @@ function buildPackageKeyboard(energy, estimate) {
   const kb = new InlineKeyboard();
   for (const e of ENERGY_CHOICES) {
     const mark = energy === e ? "✓ " : "";
-    kb.text(`${mark}${e.toLocaleString("ru-RU")}`, CB.energy(e));
+    kb.text(`${mark}${e.toLocaleString("en-US")}`, CB.energy(e));
   }
   kb.row();
   if (estimate) {
-    kb.text("▶️ Продолжить", CB.next);
+    kb.text("▶️ Continue", CB.next);
   }
-  kb.text("❌ Отмена", CB.abort);
+  kb.text("❌ Cancel", CB.abort);
   return kb;
 }
 
@@ -229,25 +237,32 @@ export function createBuyEnergyConversation(deps) {
               await conversation.halt({ next: true });
               return;
             }
+            if (t && isHelpCommand(t)) {
+              await handleHelp(/** @type {import("grammy").Context} */ (oc), deps);
+              await oc.reply(
+                "Continue checkout: tap a button under the package message or Cancel.",
+              );
+              return;
+            }
             if (t && isCancelText(t)) {
-              await oc.reply("Оформление отменено.", {
+              await oc.reply("Checkout cancelled.", {
                 reply_markup: await menuKb(oc.from?.id),
               });
               await conversation.halt();
               return;
             }
-            await oc.reply("Нажмите кнопку под сообщением с параметрами.");
+            await oc.reply("Tap a button under the package message.");
           },
         });
       } catch {
         try {
-          await ctx.api.editMessageText(sent.chat.id, sent.message_id, "Время ожидания истекло.", {
+          await ctx.api.editMessageText(sent.chat.id, sent.message_id, "Session timed out.", {
             reply_markup: undefined,
           });
         } catch {
           /* ignore */
         }
-        await ctx.reply("Время вышло. Начните снова.", {
+        await ctx.reply("Time is up. Please start again.", {
           reply_markup: await menuKb(ctx.from?.id),
         });
         return;
@@ -262,7 +277,7 @@ export function createBuyEnergyConversation(deps) {
         } catch {
           /* ignore */
         }
-        await q.reply("Оформление отменено.", {
+        await q.reply("Checkout cancelled.", {
           reply_markup: await menuKb(q.from?.id),
         });
         return;
@@ -271,7 +286,7 @@ export function createBuyEnergyConversation(deps) {
       if (data === CB.next) {
         if (!estimate) {
           await q.answerCallbackQuery({
-            text: "Дождитесь расчёта цены.",
+            text: "Please wait for the price calculation.",
             show_alert: true,
           }).catch(() => {});
           continue;
@@ -279,7 +294,7 @@ export function createBuyEnergyConversation(deps) {
         await q.answerCallbackQuery().catch(() => {});
         buyer = q.from ?? null;
         if (!buyer) {
-          await q.reply("Не удалось определить пользователя.", {
+          await q.reply("Could not identify the user.", {
             reply_markup: await menuKb(q.from?.id),
           });
           return;
@@ -323,7 +338,7 @@ export function createBuyEnergyConversation(deps) {
     }
 
     if (!buyer) {
-      await ctx.reply("Не удалось определить пользователя.", {
+      await ctx.reply("Could not identify the user.", {
         reply_markup: await menuKb(ctx.from?.id),
       });
       return;
@@ -339,7 +354,7 @@ export function createBuyEnergyConversation(deps) {
       const addrCtx = await conversation.waitFor("message:text", {
         maxMilliseconds: 15 * 60 * 1000,
         otherwise: async (oc) => {
-          await oc.reply("Отправьте адрес обычным текстовым сообщением, как в инструкции выше.");
+          await oc.reply("Send the address as a plain text message, as described above.");
         },
       });
       lastCtx = addrCtx;
@@ -348,21 +363,28 @@ export function createBuyEnergyConversation(deps) {
         await conversation.halt({ next: true });
         return;
       }
+      if (isHelpCommand(text)) {
+        await handleHelp(addrCtx, deps);
+        await addrCtx.reply(
+          "Continue: send a TRON address in one message (T…, 34 characters) or type Cancel.",
+        );
+        continue;
+      }
       if (isCancelText(text)) {
-        await addrCtx.reply("Оформление отменено.", {
+        await addrCtx.reply("Checkout cancelled.", {
           reply_markup: await menuKb(addrCtx.from?.id),
         });
         return;
       }
       if (text === BUY_ENERGY_LABEL) {
-        await addrCtx.reply("Сначала завершите ввод адреса или отмените («Отмена»).");
+        await addrCtx.reply("Finish entering the address or type Cancel to exit.");
         continue;
       }
       if (isValidTronAddress(text)) {
         delegationRecipientTronAddress = text;
         break;
       }
-      await addrCtx.reply("Адрес не похож на TRON (нужен формат T…, 34 символа). Повторите.");
+      await addrCtx.reply("This does not look like a TRON address (expected T…, 34 characters). Try again.");
     }
 
     const replyCtx = lastCtx ?? ctx;
@@ -379,19 +401,19 @@ export function createBuyEnergyConversation(deps) {
 
       await replyCtx.reply(
         [
-          "<b>Счёт готов — осталось оплатить</b>",
+          "<b>Invoice ready — payment required</b>",
           "",
-          "Спасибо за заказ. Как только платёж дойдёт до нас, энергия будет доставлена на указанный вами адрес — обычно это занимает не больше минуты.",
+          "Thank you for your order. Once payment is received, energy will be delivered to your address — usually within a minute.",
           "",
-          "🎯 Куда придёт энергия:",
+          "🎯 Energy will be sent to:",
           escapeHtml(delegationRecipientTronAddress),
           "",
-          "Переведите сумму <b>одним платежом</b>.",
+          "Send the amount in a <b>single payment</b>.",
           "",
-          "🏦 Адрес для перевода:",
+          "🏦 Payment address:",
           `<code>${escapeHtml(o.payAddress)}</code>`,
           "",
-          `💰 Сумма: ${escapeHtml(formatTrx(o.payAmount))} ${escapeHtml(String(o.payCurrency))}`,
+          `💰 Amount: ${escapeHtml(formatTrx(o.payAmount))} ${escapeHtml(String(o.payCurrency))}`,
           "",
           `🧾 Order ID: ${escapeHtml(o.orderId)}`,
         ].join("\n"),

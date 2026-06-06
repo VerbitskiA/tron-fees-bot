@@ -14,41 +14,45 @@ function escapeHtml(s) {
 export async function handleReferrals(ctx, deps) {
   const from = ctx.from;
   if (!from) {
-    await ctx.reply("Не удалось определить профиль Telegram.");
+    await ctx.reply("Could not identify your Telegram profile.");
     return;
   }
 
   try {
     const me = await deps.api.getMeByTelegram(from.id);
     if (me.role !== "Affiliate") {
-      await ctx.reply("Этот раздел доступен только партнёрам.", {
+      await ctx.reply("🔒 This section is available to partners only.", {
         reply_markup: await mainMenuKeyboardForTelegramUser(deps.api, from.id),
       });
       return;
     }
 
     const stats = await deps.api.getReferrerStatistics(from.id);
-    const lines = ["<b>👥 Рефералы</b>", ""];
+    const lines = [
+      "<b>👥 Referrals</b>",
+      "✨ Share your link — earn rewards for every invite.",
+      "",
+    ];
 
     if (me.referralTelegramUrl) {
-      lines.push("🔗 Ваша ссылка:");
+      lines.push("🔗 <b>Your link</b>");
       lines.push(`<code>${escapeHtml(me.referralTelegramUrl)}</code>`);
     } else if (me.referralCode) {
-      lines.push(`Код: <code>${escapeHtml(me.referralCode)}</code>`);
+      lines.push(`🔑 <b>Code</b>: <code>${escapeHtml(me.referralCode)}</code>`);
       lines.push(
         "",
-        "<i>Полная t.me-ссылка появится, когда на сервере задан username бота для рефералов.</i>",
+        "<i>💡 The full t.me link will appear once the bot username is configured on the server for referrals.</i>",
       );
     } else {
-      lines.push("Реферальный код пока не назначен.");
+      lines.push("⏳ Referral code has not been assigned yet.");
     }
 
     lines.push(
       "",
-      "<b>Статистика</b>",
-      `• Приглашено пользователей: ${stats.invitedUserCount}`,
-      `• Начислений реф. награды: ${stats.referralRewardCreditCount}`,
-      `• Всего начислено: ${escapeHtml(formatTrx(sunToTrx(stats.totalReferralRewardSun)))} TRX`,
+      "<b>📊 Statistics</b>",
+      `📈 Invited users: ${stats.invitedUserCount}`,
+      `🎁 Referral reward credits: ${stats.referralRewardCreditCount}`,
+      `💰 Total earned: ${escapeHtml(formatTrx(sunToTrx(stats.totalReferralRewardSun)))} TRX`,
     );
 
     await ctx.reply(lines.join("\n"), {

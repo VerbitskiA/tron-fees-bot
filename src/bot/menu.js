@@ -1,7 +1,7 @@
 import { Keyboard } from "grammy";
 
-export const BUY_ENERGY_LABEL = "⚡ Купить энергию";
-export const REFERRALS_LABEL = "👥 Рефералы";
+export const BUY_ENERGY_LABEL = "⚡ Buy energy";
+export const REFERRALS_LABEL = "👥 Referrals";
 
 /**
  * @param {{ affiliate?: boolean }} [opts]

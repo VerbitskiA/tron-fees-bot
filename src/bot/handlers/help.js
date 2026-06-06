@@ -10,7 +10,18 @@ export async function handleHelp(ctx, deps) {
     from != null
       ? await mainMenuKeyboardForTelegramUser(deps.api, from.id)
       : undefined;
-  await ctx.reply("При возникновении проблем обращайтесь к @tron_fees_support.", {
-    ...(menu ? { reply_markup: menu } : {}),
-  });
+  await ctx.reply(
+    [
+      "<b>Help &amp; support</b>",
+      "",
+      "For any questions or consultation about the service, contact support:",
+      "@tron_fees_support",
+      "",
+      "API access, TronFees integration into your service or product — write there as well; we will guide you and agree on the details.",
+    ].join("\n"),
+    {
+      parse_mode: "HTML",
+      ...(menu ? { reply_markup: menu } : {}),
+    },
+  );
 }

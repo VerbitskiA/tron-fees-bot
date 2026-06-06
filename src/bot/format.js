@@ -4,7 +4,7 @@
 export function formatTrx(v) {
   const n = typeof v === "string" ? Number(v) : Number(v);
   if (!Number.isFinite(n)) return String(v ?? "—");
-  return n.toLocaleString("ru-RU", {
+  return n.toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 6,
   });
@@ -24,7 +24,7 @@ export function formatUsd(v) {
   const n = typeof v === "string" ? Number(v) : Number(v);
   if (!Number.isFinite(n)) return String(v ?? "—");
   return (
-    n.toLocaleString("ru-RU", {
+    n.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }) + "\u00a0$"

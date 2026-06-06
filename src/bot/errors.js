@@ -6,16 +6,16 @@ import { TronFeesApiError } from "../api/tronFeesClient.js";
 export function formatUserError(err) {
   if (err instanceof TronFeesApiError) {
     if (err.status === 401 || err.status === 500) {
-      return "Сервис временно недоступен. Обратитесь к администратору.";
+      return "Service is temporarily unavailable. Please contact the administrator.";
     }
     if (err.status === 404) {
-      return "Запись не найдена. Выполните /start для регистрации.";
+      return "Record not found. Run /start to register.";
     }
     if (err.status === 400) {
-      return err.detail ?? "Неверные параметры запроса.";
+      return err.detail ?? "Invalid request parameters.";
     }
     return err.detail ?? err.message;
   }
   if (err instanceof Error) return err.message;
-  return "Произошла ошибка. Попробуйте позже.";
+  return "Something went wrong. Please try again later.";
 }
