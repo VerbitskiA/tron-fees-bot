@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "../brand.js";
 import { mainMenuKeyboardForTelegramUser } from "../menu.js";
 
 /**
@@ -17,7 +18,7 @@ export async function handleHelp(ctx, deps) {
       "For any questions or consultation about the service, contact support:",
       "@tron_volt_support",
       "",
-      "API access, TronFees integration into your service or product — write there as well; we will guide you and agree on the details.",
+      `API access, ${BRAND_NAME} integration into your service or product — write there as well; we will guide you and agree on the details.`,
     ].join("\n"),
     {
       parse_mode: "HTML",

@@ -3,6 +3,7 @@ import { formatTrx, formatUsd } from "../format.js";
 import { savingsVersusBaseline } from "../savings.js";
 import { formatUserError } from "../errors.js";
 import { isValidTronAddress } from "../tronAddress.js";
+import { BRAND_NAME } from "../brand.js";
 import {
   BUY_ENERGY_LABEL,
   mainMenuKeyboard,
@@ -56,7 +57,7 @@ function savingsBlockLinesHtml(energy, estimate) {
   const s = savingsVersusBaseline(energy, estimate.clientPriceTrx);
   if (!s) return [];
   return [
-    `<i>Without TronFees (approx.): ${escapeHtml(formatTrx(s.baseline))} TRX</i>`,
+    `<i>Without ${BRAND_NAME} (approx.): ${escapeHtml(formatTrx(s.baseline))} TRX</i>`,
     `<i>Savings: ${escapeHtml(formatTrx(s.saveTrx))} TRX (~${escapeHtml(formatUsd(s.saveUsd))})</i>`,
   ];
 }
@@ -74,7 +75,7 @@ function buildAddressStepMessage(energy, estimate) {
     "",
     escapeHtml(`• Energy amount: ${energy?.toLocaleString("en-US") ?? "—"}`),
     escapeHtml(`• Delegation period: ${DELEGATION_DURATION_HOURS} h`),
-    escapeHtml(`• TronFees price: ${formatTrx(estimate.clientPriceTrx)} TRX`),
+    escapeHtml(`• ${BRAND_NAME} price: ${formatTrx(estimate.clientPriceTrx)} TRX`),
   ];
   if (savings.length > 0) {
     parts.push("");
@@ -119,7 +120,7 @@ function buildPackageMessage(energy, estimate, estimateError) {
     return { text: lines.join("\n").trimEnd() };
   }
   if (estimate) {
-    lines.push(escapeHtml(`💳 TronFees price: ${formatTrx(estimate.clientPriceTrx)} TRX`));
+    lines.push(escapeHtml(`💳 ${BRAND_NAME} price: ${formatTrx(estimate.clientPriceTrx)} TRX`));
     const savings = savingsBlockLinesHtml(energy, estimate);
     if (savings.length > 0) {
       lines.push("");

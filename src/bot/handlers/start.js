@@ -1,6 +1,7 @@
 import { log } from "../../logger.js";
 import { commandArgs } from "../commandArgs.js";
 import { formatUserError } from "../errors.js";
+import { BRAND_NAME } from "../brand.js";
 import { mainMenuKeyboardForTelegramUser } from "../menu.js";
 
 /**
@@ -38,7 +39,7 @@ export async function handleStart(ctx, deps) {
     const name = from.first_name ?? "friend";
     const menu = await mainMenuKeyboardForTelegramUser(deps.api, from.id);
     await ctx.reply(
-      `Hi, ${name}! 👋\n\n💰 Save on TRON fees with TronFees — use the menu below 👇`,
+      `Hi, ${name}! 👋\n\n💰 Save on TRON fees with ${BRAND_NAME} — use the menu below 👇`,
       { reply_markup: menu },
     );
     log.info("start_ok", { telegramId: from.id, userId });
