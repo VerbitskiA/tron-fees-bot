@@ -48,8 +48,10 @@
 | `status` | string | **`Executed`** или **`Failed`** |
 | `failureCode` | string \| null | код CatFee (например `201`) или `HTTP` / `PROVIDER` |
 | `failureReason` | string \| null | текст ошибки |
-| `catFeeOrderReference` | string \| null | id заказа в CatFee при успехе |
+| `catFeeOrderReference` | string \| null | id заказа в CatFee (бот в UI не показывает) |
 | `delegationRecipientTronAddress` | string | адрес получателя |
+| `delegationEnergyQuantity` | long | объём энергии в пакете |
+| `delegationDurationHours` | int | срок делегирования в часах |
 | `payAmount` | decimal \| null | сумма оплаты |
 | `payCurrency` | string \| null | валюта |
 | `paymentReceivedAt` | string (ISO 8601) \| null | когда зафиксирована оплата |

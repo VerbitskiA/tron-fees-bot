@@ -8,6 +8,8 @@
  *   failureReason: string | null;
  *   catFeeOrderReference: string | null;
  *   delegationRecipientTronAddress: string;
+ *   delegationEnergyQuantity: number | null;
+ *   delegationDurationHours: number | null;
  *   payAmount: number | string | null;
  *   payCurrency: string | null;
  *   paymentReceivedAt: string | null;
@@ -50,6 +52,8 @@ export function validateDelegationOrderPayload(body) {
       failureReason: readOptionalString(o.failureReason),
       catFeeOrderReference: readOptionalString(o.catFeeOrderReference),
       delegationRecipientTronAddress,
+      delegationEnergyQuantity: readOptionalPositiveInt(o.delegationEnergyQuantity),
+      delegationDurationHours: readOptionalPositiveInt(o.delegationDurationHours),
       payAmount: readOptionalNumber(o.payAmount),
       payCurrency: readOptionalString(o.payCurrency),
       paymentReceivedAt: readOptionalString(o.paymentReceivedAt),
@@ -75,6 +79,14 @@ function readOptionalString(v) {
 
 /** @param {unknown} v */
 function readTelegramUserId(v) {
+  const n = typeof v === "string" ? Number(v) : Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.trunc(n);
+}
+
+/** @param {unknown} v */
+function readOptionalPositiveInt(v) {
+  if (v == null) return null;
   const n = typeof v === "string" ? Number(v) : Number(v);
   if (!Number.isFinite(n) || n <= 0) return null;
   return Math.trunc(n);

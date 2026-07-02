@@ -15,29 +15,38 @@ const SUPPORT_HANDLE = "@tron_volt_support";
 export function buildDelegationOrderStatusMessage(p) {
   if (p.status === "Executed") {
     const lines = [
-      "<b>Energy delegated successfully</b>",
+      "<b>✅ Energy delivered!</b>",
       "",
-      `Address: ${escapeHtml(p.delegationRecipientTronAddress)}`,
     ];
+
+    if (p.delegationEnergyQuantity != null) {
+      lines.push(
+        `⚡ Energy: ${escapeHtml(p.delegationEnergyQuantity.toLocaleString("en-US"))}`,
+      );
+    }
+    if (p.delegationDurationHours != null) {
+      lines.push(`⏱ Duration: ${escapeHtml(String(p.delegationDurationHours))} h`);
+    }
+    if (p.delegationEnergyQuantity != null || p.delegationDurationHours != null) {
+      lines.push("");
+    }
+
+    lines.push(`🎯 Address: ${escapeHtml(p.delegationRecipientTronAddress)}`);
 
     if (p.payAmount != null && p.payCurrency) {
       lines.push(
-        `Amount: ${escapeHtml(formatTrx(p.payAmount))} ${escapeHtml(p.payCurrency.toUpperCase())}`,
+        `💰 Paid: ${escapeHtml(formatTrx(p.payAmount))} ${escapeHtml(p.payCurrency.toUpperCase())}`,
       );
     }
 
-    if (p.catFeeOrderReference) {
-      lines.push(`Provider ref: <code>${escapeHtml(p.catFeeOrderReference)}</code>`);
-    }
-
-    lines.push("", `Order ID: <code>${escapeHtml(p.orderId)}</code>`);
+    lines.push("", `🧾 Order ID: <code>${escapeHtml(p.orderId)}</code>`);
     return { text: lines.join("\n"), parse_mode: "HTML" };
   }
 
   if (p.status === "Failed") {
     const reason = humanFailureReason(p);
     const lines = [
-      "<b>Order could not be completed</b>",
+      "<b>❌ Order could not be completed</b>",
       "",
       `Reason: ${escapeHtml(reason)}`,
       "",
