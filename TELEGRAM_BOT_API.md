@@ -28,6 +28,38 @@
 
 Если значение пустое, `referralTelegramUrl` в JSON будет **`null`**, при этом **`referralCode`** и **`deepLinkSuffix`** по-прежнему возвращаются там, где применимо.
 
+### Webhook результата делегации (backend → Node.js бот)
+
+После оплаты и попытки делегации в CatFee backend может отправить **исходящий POST** в бот (если включено):
+
+| Переменная (backend) | Переменная (бот) | Описание |
+|----------------------|------------------|----------|
+| `TRONFEES_BOT_WEBHOOK_ENABLED` | `WEBHOOK_ENABLED` | `true` / `false` |
+| `TRONFEES_BOT_WEBHOOK_URL` | — | URL эндпоинта бота, например `https://bot.host/webhooks/delegation-order` |
+| `TRONFEES_BOT_WEBHOOK_SECRET` | `WEBHOOK_SECRET` | общий секрет; backend шлёт заголовок **`X-Webhook-Secret`** |
+
+Бот принимает JSON (camelCase) и отправляет пользователю сообщение в Telegram. Поля payload:
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `eventId` | GUID | идемпотентность (дедупликация повторов в in-memory TTL cache) |
+| `orderId` | GUID | заказ делегации |
+| `telegramUserId` | long | кому писать в Telegram |
+| `status` | string | **`Executed`** или **`Failed`** |
+| `failureCode` | string \| null | код CatFee (например `201`) или `HTTP` / `PROVIDER` |
+| `failureReason` | string \| null | текст ошибки |
+| `catFeeOrderReference` | string \| null | id заказа в CatFee при успехе |
+| `delegationRecipientTronAddress` | string | адрес получателя |
+| `payAmount` | decimal \| null | сумма оплаты |
+| `payCurrency` | string \| null | валюта |
+| `paymentReceivedAt` | string (ISO 8601) \| null | когда зафиксирована оплата |
+| `executedAt` | string (ISO 8601) \| null | когда делегация завершена успешно |
+
+**Когда backend шлёт `Executed`:** CatFee вернул `code: 0` и `data.status` вроде **`PAYMENT_SUCCESS`**.  
+**Когда шлёт `Failed`:** любой другой ответ CatFee или сбой HTTP/валидации.
+
+Эндпоинты бота: `POST /webhooks/delegation-order`, `GET /health`.
+
 ## Формат запросов и ответов
 
 - Тело запросов: **`Content-Type: application/json`**.

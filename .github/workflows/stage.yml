@@ -15,6 +15,7 @@ env:
   BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
   TRONFEES_SERVICE_API_KEY: ${{ secrets.TRONFEES_SERVICE_API_KEY }}
   TRONFEES_API_BASE_URL: ${{ secrets.TRONFEES_API_BASE_URL }}
+  WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
 
 jobs:
   build_and_push:
@@ -59,6 +60,7 @@ jobs:
       BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
       TRONFEES_SERVICE_API_KEY: ${{ secrets.TRONFEES_SERVICE_API_KEY }}
       TRONFEES_API_BASE_URL: ${{ secrets.TRONFEES_API_BASE_URL }}
+      WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
     steps:
       - name: Deploy to server
         uses: appleboy/ssh-action@v0.1.10
@@ -67,7 +69,7 @@ jobs:
           username: ${{ secrets.USER }}
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          envs: DOCKER_USER, DOCKER_PASSWORD, CONTAINER_NAME, REGISTRY, IMAGE_NAME, GITHUB_SHA, BOT_TOKEN, TRONFEES_SERVICE_API_KEY, TRONFEES_API_BASE_URL
+          envs: DOCKER_USER, DOCKER_PASSWORD, CONTAINER_NAME, REGISTRY, IMAGE_NAME, GITHUB_SHA, BOT_TOKEN, TRONFEES_SERVICE_API_KEY, TRONFEES_API_BASE_URL, WEBHOOK_SECRET
           script: |
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
 
@@ -82,9 +84,13 @@ jobs:
             docker run -d \
               --restart always \
               --name $CONTAINER_NAME \
+              -p 127.0.0.1:3000:3000 \
               -e BOT_TOKEN="$BOT_TOKEN" \
               -e TRONFEES_SERVICE_API_KEY="$TRONFEES_SERVICE_API_KEY" \
               -e TRONFEES_API_BASE_URL="$TRONFEES_API_BASE_URL" \
+              -e WEBHOOK_ENABLED=true \
+              -e WEBHOOK_SECRET="$WEBHOOK_SECRET" \
+              -e WEBHOOK_PORT=3000 \
               $REGISTRY/$IMAGE_NAME:$GITHUB_SHA
 
             sleep 10
