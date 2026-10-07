@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY src ./src
+COPY tools ./tools
 
 ENV NODE_ENV=production
 ENV WEBHOOK_PORT=3000

@@ -20,6 +20,8 @@ env:
   # Self-hosted Umami analytics (umami container from backend compose, shared network).
   # Website id is created in the Umami dashboard; empty secret → tracking stays off.
   UMAMI_WEBSITE_ID: ${{ secrets.UMAMI_WEBSITE_ID }}
+  # Weekly funnel report to the owner (Monday 10:00 UTC); absent → report disabled.
+  UMAMI_DATABASE_URL: ${{ secrets.UMAMI_DATABASE_URL }}
 
 jobs:
   build_and_push:
@@ -67,6 +69,7 @@ jobs:
       TRONFEES_API_BASE_URL: ${{ secrets.TRONFEES_API_BASE_URL }}
       WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
       UMAMI_WEBSITE_ID: ${{ secrets.UMAMI_WEBSITE_ID }}
+      UMAMI_DATABASE_URL: ${{ secrets.UMAMI_DATABASE_URL }}
     steps:
       - name: Deploy to server
         uses: appleboy/ssh-action@v0.1.10
@@ -75,7 +78,7 @@ jobs:
           username: ${{ secrets.USER }}
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.SSH_PORT }}
-          envs: DOCKER_USER, DOCKER_PASSWORD, CONTAINER_NAME, DOCKER_NETWORK, REGISTRY, IMAGE_NAME, GITHUB_SHA, BOT_TOKEN, TRONFEES_SERVICE_API_KEY, TRONFEES_API_BASE_URL, WEBHOOK_SECRET, UMAMI_WEBSITE_ID
+          envs: DOCKER_USER, DOCKER_PASSWORD, CONTAINER_NAME, DOCKER_NETWORK, REGISTRY, IMAGE_NAME, GITHUB_SHA, BOT_TOKEN, TRONFEES_SERVICE_API_KEY, TRONFEES_API_BASE_URL, WEBHOOK_SECRET, UMAMI_WEBSITE_ID, UMAMI_DATABASE_URL
           script: |
             echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
 
@@ -103,6 +106,7 @@ jobs:
               -e UMAMI_ENABLED=true \
               -e UMAMI_URL=http://umami:3000 \
               -e UMAMI_WEBSITE_ID="$UMAMI_WEBSITE_ID" \
+              -e UMAMI_DATABASE_URL="$UMAMI_DATABASE_URL" \
               $REGISTRY/$IMAGE_NAME:$GITHUB_SHA
 
             sleep 10

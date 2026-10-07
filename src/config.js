@@ -40,4 +40,9 @@ export const config = {
   webhookPort: optionalInt("WEBHOOK_PORT", 3000),
   webhookSecret: webhookEnabled ? required("WEBHOOK_SECRET") : optional("WEBHOOK_SECRET", ""),
   webhookDedupTtlMs: optionalInt("WEBHOOK_DEDUP_TTL_MS", 86_400_000),
+  weeklyReport: {
+    databaseUrl: optional("UMAMI_DATABASE_URL", ""),
+    ownerId: optionalInt("OWNER_TELEGRAM_ID", 1124839901),
+    sendNow: parseBool("WEEKLY_REPORT_SEND_NOW", false),
+  },
 };
