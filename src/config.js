@@ -45,4 +45,9 @@ export const config = {
     ownerId: optionalInt("OWNER_TELEGRAM_ID", 1124839901),
     sendNow: parseBool("WEEKLY_REPORT_SEND_NOW", false),
   },
+  catFeeWatch: {
+    enabled: parseBool("CATFEE_WATCH_ENABLED", true),
+    lowBalanceTrx: Number(optional("CATFEE_LOW_BALANCE_TRX", "10")) * 1_000_000,
+    ownerId: optionalInt("OWNER_TELEGRAM_ID", 1124839901),
+  },
 };

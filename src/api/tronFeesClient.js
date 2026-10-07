@@ -152,6 +152,16 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
     },
 
     /**
+     * CatFee provider balance (for low-balance monitoring).
+     * @returns {Promise<{ balanceSun: number; balanceTrx: number }>}
+     */
+    async getCatFeeBalance() {
+      return /** @type {Promise<{ balanceSun: number; balanceTrx: number }>} */ (
+        request("/api/admin/catfee/balance")
+      );
+    },
+
+    /**
      * @param {number} telegramUserId
      */
     async getReferrerStatistics(telegramUserId) {

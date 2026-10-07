@@ -27,7 +27,14 @@ export function msUntilNextMonday(hourUtc, now = new Date()) {
  * }} opts
  */
 export function startWeeklyReport(bot, opts) {
-  const { databaseUrl, ownerId, hourUtc = 10, nowImpl = () => new Date(), sendNow = false } = opts;
+  const {
+    databaseUrl,
+    ownerId,
+    hourUtc = 10,
+    nowImpl = () => new Date(),
+    sendNow = false,
+    getCatFeeBalanceTrx,
+  } = opts;
   if (!databaseUrl || !ownerId) {
     log.info("weekly_report_disabled");
     return;
@@ -40,7 +47,14 @@ export function startWeeklyReport(bot, opts) {
     try {
       const report = await collectFunnel(pool, 7);
       const topUsers = await collectTopUsers(pool, 7).catch(() => []);
-      const text = formatFunnelText(report, { topUsers });
+      let extraLine = "";
+      if (getCatFeeBalanceTrx) {
+        const trx = await getCatFeeBalanceTrx().catch(() => null);
+        if (trx != null) {
+          extraLine = `\n⚡ CatFee баланс: ${trx.toFixed(2)} TRX\n`;
+        }
+      }
+      const text = formatFunnelText(report, { topUsers }) + extraLine;
       await bot.api.sendMessage(ownerId, text);
       log.info("weekly_report_sent", { ownerId });
     } catch (e) {
