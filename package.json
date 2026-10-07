@@ -9,11 +9,13 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --test test/"
+    "test": "node --test test/",
+    "funnel": "node tools/funnel.mjs"
   },
   "dependencies": {
     "@grammyjs/conversations": "^2.1.1",
     "dotenv": "^16.4.5",
-    "grammy": "^1.31.3"
+    "grammy": "^1.31.3",
+    "pg": "^8.23.1"
   }
 }
