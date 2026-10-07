@@ -87,6 +87,7 @@ export function createDelegationOrderHandler(deps) {
         payload.status === "Executed" ? "order_executed" : "order_failed",
         {
           status: payload.status,
+          uid: payload.telegramUserId,
           ...(payload.status === "Failed" && payload.failureCode
             ? { failure_code: payload.failureCode }
             : {}),

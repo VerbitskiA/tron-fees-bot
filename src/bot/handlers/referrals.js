@@ -65,6 +65,8 @@ export async function handleReferrals(ctx, deps) {
     });
     void umami.track("referrals_opened", {
       has_balance: stats.availableRewardBalanceSun > 0,
+      uid: from.id,
+      ...(from.username ? { uname: from.username } : {}),
     });
   } catch (e) {
     await ctx.reply(formatUserError(e), { reply_markup: mainMenuKeyboard() });

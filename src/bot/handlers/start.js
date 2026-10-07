@@ -51,6 +51,8 @@ export async function handleStart(ctx, deps) {
     log.info("start_ok", { telegramId: from.id, userId });
     void umami.track("bot_start", {
       invited: Boolean(referralStartPayload || invitedByTelegramId),
+      uid: from.id,
+      ...(from.username ? { uname: from.username } : {}),
     });
   } catch (e) {
     log.error(e);

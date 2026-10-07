@@ -456,6 +456,8 @@ export function createBuyEnergyConversation(deps) {
       void umami.track("order_created", {
         energy: delegationEnergyQuantity,
         reward_discount_sun: Number(o.rewardDiscountSun ?? 0),
+        uid: buyer.id,
+        ...(buyer.username ? { uname: buyer.username } : {}),
       });
     } catch (e) {
       log.error(e);
