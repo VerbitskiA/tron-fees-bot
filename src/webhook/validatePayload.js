@@ -12,6 +12,7 @@
  *   delegationDurationHours: number | null;
  *   payAmount: number | string | null;
  *   payCurrency: string | null;
+ *   rewardDiscountSun: number | null;
  *   paymentReceivedAt: string | null;
  *   executedAt: string | null;
  * }} DelegationOrderWebhookPayload
@@ -56,6 +57,7 @@ export function validateDelegationOrderPayload(body) {
       delegationDurationHours: readOptionalPositiveInt(o.delegationDurationHours),
       payAmount: readOptionalNumber(o.payAmount),
       payCurrency: readOptionalString(o.payCurrency),
+      rewardDiscountSun: readOptionalNumber(o.rewardDiscountSun),
       paymentReceivedAt: readOptionalString(o.paymentReceivedAt),
       executedAt: readOptionalString(o.executedAt),
     },

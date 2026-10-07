@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { log } from "../logger.js";
-import { mainMenuKeyboardForTelegramUser } from "../bot/menu.js";
+import { umami } from "../analytics/umami.js";
+import { mainMenuKeyboard } from "../bot/menu.js";
 import { buildDelegationOrderStatusMessage } from "./messages.js";
 import { validateDelegationOrderPayload } from "./validatePayload.js";
 
@@ -17,16 +18,14 @@ function secureCompare(provided, expected) {
 
 /**
  * @param {import("grammy").Bot} bot
- * @param {import("../api/tronFeesClient.js").TronFeesApi} api
  * @param {import("./validatePayload.js").DelegationOrderWebhookPayload} payload
  */
-async function sendDelegationOrderNotification(bot, api, payload) {
+async function sendDelegationOrderNotification(bot, payload) {
   const msg = buildDelegationOrderStatusMessage(payload);
-  const keyboard = await mainMenuKeyboardForTelegramUser(api, payload.telegramUserId);
 
   await bot.api.sendMessage(payload.telegramUserId, msg.text, {
     parse_mode: msg.parse_mode,
-    reply_markup: keyboard,
+    reply_markup: mainMenuKeyboard(),
   });
 }
 
@@ -39,7 +38,7 @@ async function sendDelegationOrderNotification(bot, api, payload) {
  * }} deps
  */
 export function createDelegationOrderHandler(deps) {
-  const { bot, api, config, eventIdCache } = deps;
+  const { bot, config, eventIdCache } = deps;
 
   /**
    * @param {import("node:http").IncomingMessage} req
@@ -83,7 +82,19 @@ export function createDelegationOrderHandler(deps) {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
 
-    void sendDelegationOrderNotification(bot, api, payload)
+    if (payload.status === "Executed" || payload.status === "Failed") {
+      void umami.track(
+        payload.status === "Executed" ? "order_executed" : "order_failed",
+        {
+          status: payload.status,
+          ...(payload.status === "Failed" && payload.failureCode
+            ? { failure_code: payload.failureCode }
+            : {}),
+        },
+      );
+    }
+
+    void sendDelegationOrderNotification(bot, payload)
       .then(() => {
         log.info("webhook_notify_ok", {
           eventId: payload.eventId,

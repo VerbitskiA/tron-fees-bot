@@ -1,8 +1,9 @@
 import { log } from "../../logger.js";
+import { umami } from "../../analytics/umami.js";
 import { commandArgs } from "../commandArgs.js";
 import { formatUserError } from "../errors.js";
 import { BRAND_NAME } from "../brand.js";
-import { mainMenuKeyboardForTelegramUser } from "../menu.js";
+import { mainMenuKeyboard } from "../menu.js";
 
 /**
  * @param {import("grammy").Context} ctx
@@ -37,12 +38,20 @@ export async function handleStart(ctx, deps) {
     });
 
     const name = from.first_name ?? "friend";
-    const menu = await mainMenuKeyboardForTelegramUser(deps.api, from.id);
     await ctx.reply(
-      `Hi, ${name}! 👋\n\n💰 Save on TRON fees with ${BRAND_NAME} — use the menu below 👇`,
-      { reply_markup: menu },
+      [
+        `Hi, ${name}! 👋`,
+        "",
+        `💰 Save on TRON fees with ${BRAND_NAME} — use the menu below 👇`,
+        "",
+        "👥 Invite friends via the Referrals section and earn rewards on their orders.",
+      ].join("\n"),
+      { reply_markup: mainMenuKeyboard() },
     );
     log.info("start_ok", { telegramId: from.id, userId });
+    void umami.track("bot_start", {
+      invited: Boolean(referralStartPayload || invitedByTelegramId),
+    });
   } catch (e) {
     log.error(e);
     await ctx.reply(formatUserError(e));

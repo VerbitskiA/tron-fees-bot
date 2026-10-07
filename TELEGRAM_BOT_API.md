@@ -21,6 +21,8 @@
 
 ### Ссылка-приглашение в Telegram (рефералы)
 
+**Реферальная программа открыта для всех**: каждый новый пользователь при регистрации автоматически получает роль `Affiliate` и реферальный код. Награда начисляется за каждый оплаченный заказ приглашённого (по умолчанию 50% маржи заказа) и **тратится как скидка на собственные заказы** (до 80% цены заказа, см. `rewardDiscountSun` / `availableRewardBalanceSun` в разделах ниже). Фактическое списание происходит только после подтверждения оплаты заказа.
+
 Чтобы в ответах появлялось поле **`referralTelegramUrl`** (полная ссылка `https://t.me/<бот>?start=aff_...`), на бэкенде должен быть задан **username бота без `@`**:
 
 - переменная окружения **`TRONFEES_TELEGRAM_BOT_USERNAME`**, или
@@ -50,17 +52,14 @@
 | `failureReason` | string \| null | текст ошибки |
 | `catFeeOrderReference` | string \| null | id заказа в CatFee (бот в UI не показывает) |
 | `delegationRecipientTronAddress` | string | адрес получателя |
-| `delegationEnergyQuantity` | long | объём энергии в пакете |
-| `delegationDurationHours` | int | срок делегирования в часах |
 | `payAmount` | decimal \| null | сумма оплаты |
 | `payCurrency` | string \| null | валюта |
+| `rewardDiscountSun` | long \| null | реферальная скидка, применённая к этому заказу, в SUN |
 | `paymentReceivedAt` | string (ISO 8601) \| null | когда зафиксирована оплата |
 | `executedAt` | string (ISO 8601) \| null | когда делегация завершена успешно |
 
-**Когда backend шлёт `Executed`:** CatFee вернул `code: 0` и `data.status` вроде **`PAYMENT_SUCCESS`**.  
-**Когда шлёт `Failed`:** любой другой ответ CatFee или сбой HTTP/валидации.
-
-Эндпоинты бота: `POST /webhooks/delegation-order`, `GET /health`.
+**Когда backend шлёт `Executed`:** CatFee вернул `code: 0` и `data.status` вроде **`PAYMENT_SUCCESS`** (успешный старт делегации; `confirm_status` может быть `UNCONFIRMED`).  
+**Когда шлёт `Failed`:** любой другой ответ CatFee (`code != 0`, пустой `data`, статус не успешный) или сбой HTTP/валидации.
 
 ## Формат запросов и ответов
 
@@ -111,9 +110,9 @@
 | `telegramId` | long | Telegram ID |
 | `telegramUsername` | string \| null | сохранённый username |
 | `registeredAt` | string (ISO 8601) | время регистрации |
-| `role` | string | **`User`** или **`Affiliate`** |
-| `referralCode` | string \| null | код без префикса `aff_` (только для аффилиата) |
-| `referralTelegramUrl` | string \| null | полная ссылка для шаринга в Telegram; **`null`**, если не аффилиат, нет кода или не задан `TelegramBotUsername` |
+| `role` | string | **`User`** или **`Affiliate`**; с открытием рефералки для всех новые пользователи сразу получают **`Affiliate`** |
+| `referralCode` | string \| null | код без префикса `aff_` (выдаётся автоматически при регистрации) |
+| `referralTelegramUrl` | string \| null | полная ссылка для шаринга в Telegram; **`null`**, если нет кода или не задан `TelegramBotUsername` |
 
 ### Ошибки
 
@@ -148,6 +147,7 @@
 |----------|-----|----------|
 | `delegationEnergyQuantity` | long | объём энергии (CatFee quantity), **> 0** |
 | `delegationDurationHours` | int | длительность в часах, **≥ 1** |
+| `telegramUserId` | long (опционально) | Telegram ID пользователя; добавляет в ответ поля реферального баланса и цены со скидкой |
 
 ### Ответ 200 (структура)
 
@@ -157,10 +157,13 @@
 | `delegationDurationHours` | int | эхо запроса |
 | `providerCostSun` | long | себестоимость в SUN |
 | `marginSun` | long | маржа в SUN |
-| `clientPriceSun` | long | цена клиенту в SUN |
+| `clientPriceSun` | long | цена клиенту в SUN (без учёта реферальной скидки) |
 | `providerCostTrx` | decimal | в TRX |
 | `clientPriceTrx` | decimal | в TRX |
 | `invoicePriceCurrency` | string | валюта счёта NOWPayments |
+| `availableRewardBalanceSun` | long | доступный реферальный баланс в SUN (**0**, если `telegramUserId` не передан) |
+| `rewardDiscountSun` | long | скидка реферальными наградами, которая будет применена к заказу, в SUN |
+| `discountedClientPriceSun` | long \| null | цена к оплате с учётом скидки; **null**, если скидка нулевая |
 
 ### Ошибки
 
@@ -188,8 +191,9 @@
 | `orderId` | GUID | внутренний идентификатор заказа |
 | `nowPaymentsPaymentId` | string | идентификатор платежа NOWPayments |
 | `payAddress` | string | адрес для оплаты |
-| `payAmount` | decimal | сумма к оплате |
+| `payAmount` | decimal | сумма к оплате (**уже с учётом** реферальной скидки) |
 | `payCurrency` | string | валюта (например `trx`) |
+| `rewardDiscountSun` | long | применённая реферальная скидка в SUN (**0**, если наград не было) |
 
 ### Ошибки
 
@@ -201,9 +205,41 @@
 
 Оплата и дальнейший сценарий выполняются через NOWPayments; бот обычно показывает пользователю `payAddress`, `payAmount`, `payCurrency`.
 
+Оплата и дальнейший сценарий выполняются через NOWPayments; бот обычно показывает пользователю `payAddress`, `payAmount`, `payCurrency`. После оплаты итог приходит через **webhook backend → бот** (см. выше) или через опрос статуса заказа.
+
 ---
 
-## 6. Реферальная статистика (пригласивший)
+## 6. Статус заказа делегации (fallback)
+
+**`GET /api/energy-delegation/orders/{orderId}`** (нужен `X-Api-Key`)
+
+Используйте, если webhook не дошёл или нужно обновить UI по `orderId` из ответа создания заказа.
+
+### Ответ 200
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `orderId` | GUID | идентификатор заказа |
+| `userId` | GUID | внутренний пользователь |
+| `status` | string | `Created`, `Paid`, `Executed`, `Failed` |
+| `failureCode` | string \| null | при `Failed` |
+| `failureReason` | string \| null | при `Failed` |
+| `catFeeOrderReference` | string \| null | id в CatFee при успехе |
+| `delegationRecipientTronAddress` | string | TRON-адрес |
+| `payAmount` | decimal \| null | из платежа |
+| `payCurrency` | string \| null | из платежа |
+| `rewardDiscountSun` | long \| null | применённая реферальная скидка в SUN |
+| `paymentReceivedAt` | string (ISO 8601) \| null | время оплаты |
+| `executedAt` | string (ISO 8601) \| null | время успешной делегации |
+| `lastStatusChangedAt` | string (ISO 8601) \| null | последнее изменение статуса |
+
+### Ошибки
+
+**404** — заказ не найден.
+
+---
+
+## 7. Реферальная статистика (пригласивший)
 
 **`GET /api/admin/users/by-telegram/{telegramUserId}/referrer-statistics`** (нужен `X-Api-Key`)
 
@@ -216,6 +252,7 @@
 | `invitedUserCount` | int | сколько пользователей зарегистрировалось с привязкой к этому инвайтеру |
 | `referralRewardCreditCount` | int | сколько раз начислялась реферальная награда |
 | `totalReferralRewardSun` | long | сумма начисленных наград в SUN (**1 TRX = 1_000_000 SUN**) |
+| `availableRewardBalanceSun` | long | доступный баланс наград (начислено минус потрачено на скидки) в SUN |
 
 ### Ошибки
 
@@ -223,7 +260,7 @@
 
 ---
 
-## 7. Админ: роль аффилиата (опционально)
+## 8. Админ: роль аффилиата (опционально)
 
 **`POST /api/admin/users/{userId}/affiliate`** (нужен `X-Api-Key`)
 
@@ -248,7 +285,7 @@
 
 ---
 
-## 8. Админ: политика вознаграждения реферера (опционально)
+## 9. Админ: политика вознаграждения реферера (опционально)
 
 **`PUT /api/admin/referrer-reward-policies/{referrerUserId}`** (нужен `X-Api-Key`)
 
@@ -277,8 +314,9 @@
 2. Для экрана «профиль / реферальная ссылка» — **`GET /api/users/me/by-telegram/{telegramUserId}`**.
 3. При сохранении кошелька пользователя — **`POST /api/users/addresses`** с сохранённым `userId`.
 4. Перед покупкой энергии — **`GET /api/energy-delegation/pricing-estimate`**.
-5. Создание оплаты — **`POST /api/energy-delegation/orders`** с **`telegramUserId`** = текущий Telegram ID пользователя.
-6. Экран «мои рефералы» для блогера — **`GET /api/admin/users/by-telegram/{telegramUserId}/referrer-statistics`**.
+5. Создание оплаты — **`POST /api/energy-delegation/orders`** с **`telegramUserId`** = текущий Telegram ID пользователя. Сохранить **`orderId`**.
+6. После оплаты — дождаться **webhook** на бот (`Executed` / `Failed`) или периодически опрашивать **`GET /api/energy-delegation/orders/{orderId}`**.
+7. Экран «мои рефералы» для блогера — **`GET /api/admin/users/by-telegram/{telegramUserId}/referrer-statistics`**.
 
 ---
 

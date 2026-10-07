@@ -38,6 +38,9 @@ export function buildDelegationOrderStatusMessage(p) {
         `💰 Paid: ${escapeHtml(formatTrx(p.payAmount))} ${escapeHtml(p.payCurrency.toUpperCase())}`,
       );
     }
+    if (p.rewardDiscountSun != null && p.rewardDiscountSun > 0) {
+      lines.push(`🎁 Reward credits used: −${escapeHtml(formatTrx(p.rewardDiscountSun / 1_000_000))} TRX`);
+    }
 
     lines.push("", `🧾 Order ID: <code>${escapeHtml(p.orderId)}</code>`);
     return { text: lines.join("\n"), parse_mode: "HTML" };

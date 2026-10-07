@@ -106,13 +106,20 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
     },
 
     /**
-     * @param {{ delegationEnergyQuantity: number; delegationDurationHours: number }} q
+     * @param {{
+     *   delegationEnergyQuantity: number;
+     *   delegationDurationHours: number;
+     *   telegramUserId?: number;
+     * }} q
      */
     async getPricingEstimate(q) {
       const params = new URLSearchParams({
         delegationEnergyQuantity: String(q.delegationEnergyQuantity),
         delegationDurationHours: String(q.delegationDurationHours),
       });
+      if (q.telegramUserId != null) {
+        params.set("telegramUserId", String(q.telegramUserId));
+      }
       return /** @type {Promise<PricingEstimate>} */ (
         request(`/api/energy-delegation/pricing-estimate?${params}`)
       );
@@ -167,6 +174,9 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
  *   providerCostTrx: number | string;
  *   clientPriceTrx: number | string;
  *   invoicePriceCurrency: string;
+ *   availableRewardBalanceSun?: number;
+ *   rewardDiscountSun?: number;
+ *   discountedClientPriceSun?: number | null;
  * }} PricingEstimate
  */
 
@@ -177,6 +187,7 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
  *   payAddress: string;
  *   payAmount: number | string;
  *   payCurrency: string;
+ *   rewardDiscountSun?: number;
  * }} EnergyOrderResponse
  */
 
@@ -185,6 +196,7 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
  *   invitedUserCount: number;
  *   referralRewardCreditCount: number;
  *   totalReferralRewardSun: number;
+ *   availableRewardBalanceSun?: number;
  * }} ReferrerStatistics
  */
 

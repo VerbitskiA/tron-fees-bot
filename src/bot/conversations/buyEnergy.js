@@ -1,5 +1,5 @@
 import { InlineKeyboard } from "grammy";
-import { formatTrx, formatUsd } from "../format.js";
+import { formatTrx, formatUsd, sunToTrx } from "../format.js";
 import { savingsVersusBaseline } from "../savings.js";
 import { formatUserError } from "../errors.js";
 import { isValidTronAddress } from "../tronAddress.js";
@@ -7,10 +7,10 @@ import { BRAND_NAME } from "../brand.js";
 import {
   BUY_ENERGY_LABEL,
   mainMenuKeyboard,
-  mainMenuKeyboardForTelegramUser,
   removeKeyboardMarkup,
 } from "../menu.js";
 import { log } from "../../logger.js";
+import { umami } from "../../analytics/umami.js";
 import { handleHelp } from "../handlers/help.js";
 
 /**
@@ -63,13 +63,28 @@ function savingsBlockLinesHtml(energy, estimate) {
 }
 
 /**
+ * @param {import("../../api/tronFeesClient.js").PricingEstimate | null} estimate
+ * @returns {string[]}
+ */
+function rewardDiscountLinesHtml(estimate) {
+  if (!estimate || !(estimate.rewardDiscountSun > 0) || estimate.discountedClientPriceSun == null) {
+    return [];
+  }
+  return [
+    `🎁 Reward discount: −${escapeHtml(formatTrx(sunToTrx(estimate.rewardDiscountSun)))} TRX`,
+    `💳 To pay with rewards: ${escapeHtml(formatTrx(sunToTrx(estimate.discountedClientPriceSun)))} TRX`,
+  ];
+}
+
+/**
  * Одно сообщение: выбранный пакет + запрос адреса делегирования.
  * @param {number | null} energy
  * @param {import("../../api/tronFeesClient.js").PricingEstimate} estimate
  * @returns {{ text: string; parse_mode?: "HTML" }}
  */
-function buildAddressStepMessage(energy, estimate) {
+export function buildAddressStepMessage(energy, estimate) {
   const savings = savingsBlockLinesHtml(energy ?? null, estimate);
+  const rewards = rewardDiscountLinesHtml(estimate);
   const parts = [
     escapeHtml("📦 Selected package"),
     "",
@@ -77,6 +92,9 @@ function buildAddressStepMessage(energy, estimate) {
     escapeHtml(`• Delegation period: ${DELEGATION_DURATION_HOURS} h`),
     escapeHtml(`• ${BRAND_NAME} price: ${formatTrx(estimate.clientPriceTrx)} TRX`),
   ];
+  if (rewards.length > 0) {
+    parts.push(...rewards);
+  }
   if (savings.length > 0) {
     parts.push("");
     parts.push(...savings);
@@ -89,7 +107,9 @@ function buildAddressStepMessage(energy, estimate) {
   );
   return {
     text: parts.join("\n"),
-    ...(savings.length > 0 ? { parse_mode: /** @type {const} */ ("HTML") } : {}),
+    ...((savings.length > 0 || rewards.length > 0)
+      ? { parse_mode: /** @type {const} */ ("HTML") }
+      : {}),
   };
 }
 
@@ -99,7 +119,7 @@ function buildAddressStepMessage(energy, estimate) {
  * @param {string | null} estimateError
  * @returns {{ text: string; parse_mode?: "HTML" }}
  */
-function buildPackageMessage(energy, estimate, estimateError) {
+export function buildPackageMessage(energy, estimate, estimateError) {
   const lines = [
     escapeHtml("⚡ Choose an energy amount."),
     "",
@@ -121,6 +141,10 @@ function buildPackageMessage(energy, estimate, estimateError) {
   }
   if (estimate) {
     lines.push(escapeHtml(`💳 ${BRAND_NAME} price: ${formatTrx(estimate.clientPriceTrx)} TRX`));
+    const rewards = rewardDiscountLinesHtml(estimate);
+    if (rewards.length > 0) {
+      lines.push(...rewards);
+    }
     const savings = savingsBlockLinesHtml(energy, estimate);
     if (savings.length > 0) {
       lines.push("");
@@ -129,7 +153,9 @@ function buildPackageMessage(energy, estimate, estimateError) {
     lines.push("", escapeHtml("👉 Tap Continue to confirm the package and enter an address."));
     return {
       text: lines.join("\n").trimEnd(),
-      ...(savings.length > 0 ? { parse_mode: /** @type {const} */ ("HTML") } : {}),
+      ...((savings.length > 0 || rewards.length > 0)
+        ? { parse_mode: /** @type {const} */ ("HTML") }
+        : {}),
     };
   }
   if (energy != null) {
@@ -176,13 +202,7 @@ export function createBuyEnergyConversation(deps) {
     const rmMsg = await ctx.reply("\u2060", { reply_markup: removeKeyboardMarkup });
     await ctx.api.deleteMessage(rmMsg.chat.id, rmMsg.message_id).catch(() => {});
 
-    /** @param {number | undefined} fromId */
-    async function menuKb(fromId) {
-      if (fromId == null) return mainMenuKeyboard({ affiliate: false });
-      return await conversation.external(async () =>
-        mainMenuKeyboardForTelegramUser(deps.api, fromId),
-      );
-    }
+    const telegramUserId = ctx.from?.id ?? null;
 
     /** @type {number | null} */
     let energy = DEFAULT_ENERGY;
@@ -196,6 +216,7 @@ export function createBuyEnergyConversation(deps) {
         deps.api.getPricingEstimate({
           delegationEnergyQuantity: energy,
           delegationDurationHours: DELEGATION_DURATION_HOURS,
+          ...(telegramUserId != null ? { telegramUserId } : {}),
         }),
       );
       estimateError = null;
@@ -247,7 +268,7 @@ export function createBuyEnergyConversation(deps) {
             }
             if (t && isCancelText(t)) {
               await oc.reply("Checkout cancelled.", {
-                reply_markup: await menuKb(oc.from?.id),
+                reply_markup: mainMenuKeyboard(),
               });
               await conversation.halt();
               return;
@@ -264,7 +285,7 @@ export function createBuyEnergyConversation(deps) {
           /* ignore */
         }
         await ctx.reply("Time is up. Please start again.", {
-          reply_markup: await menuKb(ctx.from?.id),
+          reply_markup: mainMenuKeyboard(),
         });
         return;
       }
@@ -279,7 +300,7 @@ export function createBuyEnergyConversation(deps) {
           /* ignore */
         }
         await q.reply("Checkout cancelled.", {
-          reply_markup: await menuKb(q.from?.id),
+          reply_markup: mainMenuKeyboard(),
         });
         return;
       }
@@ -296,7 +317,7 @@ export function createBuyEnergyConversation(deps) {
         buyer = q.from ?? null;
         if (!buyer) {
           await q.reply("Could not identify the user.", {
-            reply_markup: await menuKb(q.from?.id),
+            reply_markup: mainMenuKeyboard(),
           });
           return;
         }
@@ -340,7 +361,7 @@ export function createBuyEnergyConversation(deps) {
 
     if (!buyer) {
       await ctx.reply("Could not identify the user.", {
-        reply_markup: await menuKb(ctx.from?.id),
+        reply_markup: mainMenuKeyboard(),
       });
       return;
     }
@@ -373,7 +394,7 @@ export function createBuyEnergyConversation(deps) {
       }
       if (isCancelText(text)) {
         await addrCtx.reply("Checkout cancelled.", {
-          reply_markup: await menuKb(addrCtx.from?.id),
+          reply_markup: mainMenuKeyboard(),
         });
         return;
       }
@@ -400,6 +421,11 @@ export function createBuyEnergyConversation(deps) {
         }),
       );
 
+      const discountTrx =
+        typeof o.rewardDiscountSun === "number" && o.rewardDiscountSun > 0
+          ? sunToTrx(o.rewardDiscountSun)
+          : null;
+
       await replyCtx.reply(
         [
           "<b>Invoice ready — payment required</b>",
@@ -409,6 +435,12 @@ export function createBuyEnergyConversation(deps) {
           "🎯 Energy will be sent to:",
           escapeHtml(delegationRecipientTronAddress),
           "",
+          ...(discountTrx != null
+            ? [
+                `🎁 Reward discount applied: −${escapeHtml(formatTrx(discountTrx))} TRX`,
+                "",
+              ]
+            : []),
           "Send the amount in a <b>single payment</b>.",
           "",
           "🏦 Payment address:",
@@ -418,13 +450,17 @@ export function createBuyEnergyConversation(deps) {
           "",
           `🧾 Order ID: ${escapeHtml(o.orderId)}`,
         ].join("\n"),
-        { parse_mode: "HTML", reply_markup: await menuKb(replyCtx.from?.id) },
+        { parse_mode: "HTML", reply_markup: mainMenuKeyboard() },
       );
       log.info("order_ok", { telegramId: buyer.id, orderId: o.orderId });
+      void umami.track("order_created", {
+        energy: delegationEnergyQuantity,
+        reward_discount_sun: Number(o.rewardDiscountSun ?? 0),
+      });
     } catch (e) {
       log.error(e);
       await replyCtx.reply(formatUserError(e), {
-        reply_markup: await menuKb(replyCtx.from?.id),
+        reply_markup: mainMenuKeyboard(),
       });
     }
   };
