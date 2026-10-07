@@ -221,7 +221,7 @@
 |------|-----|----------|
 | `orderId` | GUID | идентификатор заказа |
 | `userId` | GUID | внутренний пользователь |
-| `status` | string | `Created`, `Paid`, `Executed`, `Failed` |
+| `status` | string | `Created`, `Paid`, `Executed`, `Failed`, `Expired` (неоплачен дольше 24 ч) |
 | `failureCode` | string \| null | при `Failed` |
 | `failureReason` | string \| null | при `Failed` |
 | `catFeeOrderReference` | string \| null | id в CatFee при успехе |
