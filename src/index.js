@@ -13,7 +13,7 @@ async function main() {
     apiKey: config.tronFeesServiceApiKey,
   });
 
-  const deps = { api };
+  const deps = { api, config };
   const bot = createBot(config.botToken, deps);
 
   await bot.api.setMyCommands([

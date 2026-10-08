@@ -162,6 +162,73 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
     },
 
     /**
+     * @param {{ name: string; contact?: string | null; contactTelegramId: number; webhookUrl?: string | null }} payload
+     */
+    async createPartner(payload) {
+      return /** @type {Promise<PartnerCreated>} */ (
+        request("/api/admin/partners", {
+          method: "POST",
+          body: {
+            name: payload.name,
+            contact: payload.contact ?? null,
+            contactTelegramId: payload.contactTelegramId,
+            status: "Pending",
+            webhookUrl: payload.webhookUrl ?? null,
+          },
+        })
+      );
+    },
+
+    async listPartners() {
+      return /** @type {Promise<PartnerListItem[]>} */ (
+        request("/api/admin/partners")
+      );
+    },
+
+    /**
+     * @param {string} partnerId
+     * @param {number} discountPercent
+     */
+    async approvePartner(partnerId, discountPercent) {
+      return request(`/api/admin/partners/${partnerId}/approve`, {
+        method: "POST",
+        body: { discountPercent },
+      });
+    },
+
+    /** @param {string} partnerId */
+    async rejectPartner(partnerId) {
+      return request(`/api/admin/partners/${partnerId}/reject`, { method: "POST" });
+    },
+
+    /** @param {string} partnerId */
+    async issuePartnerKey(partnerId) {
+      return /** @type {Promise<{ apiKeyId: string; key: string }>} */ (
+        request(`/api/admin/partners/${partnerId}/keys`, { method: "POST" })
+      );
+    },
+
+    /** @param {string} partnerId */
+    async partnerBalance(partnerId) {
+      return /** @type {Promise<PartnerBalance>} */ (
+        request(`/api/admin/partners/${partnerId}/balance`)
+      );
+    },
+
+    /**
+     * @param {string} partnerId
+     * @param {number} amountTrx
+     */
+    async createPartnerTopUpInvoice(partnerId, amountTrx) {
+      return /** @type {Promise<TopUpInvoice>} */ (
+        request(`/api/admin/partners/${partnerId}/top-up-invoices`, {
+          method: "POST",
+          body: { amountTrx },
+        })
+      );
+    },
+
+    /**
      * @param {number} telegramUserId
      */
     async getReferrerStatistics(telegramUserId) {
@@ -223,3 +290,47 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
  */
 
 /** @typedef {ReturnType<typeof createTronFeesClient>} TronFeesApi */
+
+/**
+ * @typedef {{
+ *   partnerId: string;
+ *   apiKeyId: string;
+ *   apiKey: string;
+ * }} PartnerCreated
+ */
+
+/**
+ * @typedef {{
+ *   id: string;
+ *   name: string;
+ *   contact: string | null;
+ *   contactTelegramId: number | null;
+ *   status: string;
+ *   discountPercent: number;
+ *   webhookUrl: string | null;
+ *   createdAt: string;
+ *   apiKeys: {{ id: string; prefix: string; status: string; createdAt: string; lastUsedAt: string | null }[];
+ * }} PartnerListItem
+ */
+
+/**
+ * @typedef {{
+ *   availableSun: number;
+ *   heldSun: number;
+ *   totalSun: number;
+ *   availableTrx: number;
+ *   heldTrx: number;
+ *   totalTrx: number;
+ * }} PartnerBalance
+ */
+
+/**
+ * @typedef {{
+ *   invoiceId: string;
+ *   paymentId: string;
+ *   payAddress: string;
+ *   payAmount: number | string;
+ *   payCurrency: string;
+ *   creditSun: number;
+ * }} TopUpInvoice
+ */
