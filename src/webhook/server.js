@@ -1,6 +1,7 @@
 import http from "node:http";
 import { log } from "../logger.js";
 import { createDelegationOrderHandler } from "./delegationOrderHandler.js";
+import { createPartnerMessageHandler } from "./partnerMessageHandler.js";
 
 const DELEGATION_ORDER_PATH = "/webhooks/delegation-order";
 const MAX_BODY_BYTES = 65_536;
@@ -40,6 +41,7 @@ function readBody(req) {
  */
 export function createWebhookServer(deps) {
   const handleDelegationOrder = createDelegationOrderHandler(deps);
+  const handlePartnerMessage = createPartnerMessageHandler(deps);
 
   const server = http.createServer(async (req, res) => {
     const method = req.method ?? "GET";
@@ -48,6 +50,20 @@ export function createWebhookServer(deps) {
     if (method === "GET" && path === "/health") {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
+    if (method === "POST" && path === "/webhooks/partner-message") {
+      try {
+        const bodyText = await readBody(req);
+        await handlePartnerMessage(req, res, bodyText);
+      } catch (err) {
+        log.error("webhook_read_error", err);
+        if (!res.headersSent) {
+          res.writeHead(413, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Request body too large" }));
+        }
+      }
       return;
     }
 
