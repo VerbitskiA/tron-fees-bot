@@ -60,7 +60,7 @@ test("fetch failure is swallowed", async () => {
   assert.equal(sent.length, 0);
 });
 
-test("disabled watcher does nothing", () => {
+test("disabled watcher does nothing", async () => {
   const watcher = createCatFeeWatcher({
     enabled: false,
     getBalanceSun: async () => {
@@ -69,4 +69,26 @@ test("disabled watcher does nothing", () => {
     send: async () => {},
   });
   assert.equal(typeof watcher.stop, "function");
+  await assert.doesNotReject(() => watcher.check());
+});
+
+test("check() is exposed for per-order triggers", async () => {
+  const sent = [];
+  let balanceSun = 25_000_000; // ниже дефолтного порога 30 TRX
+  const watcher = createCatFeeWatcher({
+    enabled: true,
+    getBalanceSun: async () => balanceSun,
+    send: async (t) => sent.push(t),
+    minAlertIntervalMs: 6 * 3_600_000,
+  });
+  await watcher.check();
+  assert.equal(sent.length, 1);
+  assert.match(sent[0], /25\.00 TRX/);
+  assert.match(sent[0], /порог 30 TRX/);
+
+  // сразу после «следующего заказа» — тихо (антиспам)
+  balanceSun = 20_000_000;
+  await watcher.check();
+  assert.equal(sent.length, 1);
+  watcher.stop();
 });

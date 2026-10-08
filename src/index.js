@@ -30,18 +30,16 @@ async function main() {
     });
   }
 
-  if (config.catFeeWatch.enabled) {
-    createCatFeeWatcher({
-      enabled: true,
-      getBalanceSun: async () => (await api.getCatFeeBalance()).balanceSun,
-      send: (text) => bot.api.sendMessage(config.catFeeWatch.ownerId, text),
-      lowBalanceSun: config.catFeeWatch.lowBalanceTrx,
-    });
-  }
+  const catFeeWatch = createCatFeeWatcher({
+    enabled: config.catFeeWatch.enabled,
+    getBalanceSun: async () => (await api.getCatFeeBalance()).balanceSun,
+    send: (text) => bot.api.sendMessage(config.catFeeWatch.ownerId, text),
+    lowBalanceSun: config.catFeeWatch.lowBalanceTrx,
+  });
 
   if (config.webhookEnabled) {
     const eventIdCache = createEventIdCache({ ttlMs: config.webhookDedupTtlMs });
-    createWebhookServer({ bot, api, config, eventIdCache });
+    createWebhookServer({ bot, api, config, eventIdCache, catFeeWatch });
   }
 
   log.info("starting bot…");

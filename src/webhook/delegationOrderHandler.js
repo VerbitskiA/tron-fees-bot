@@ -38,7 +38,7 @@ async function sendDelegationOrderNotification(bot, payload) {
  * }} deps
  */
 export function createDelegationOrderHandler(deps) {
-  const { bot, config, eventIdCache } = deps;
+  const { bot, config, eventIdCache, catFeeWatch } = deps;
 
   /**
    * @param {import("node:http").IncomingMessage} req
@@ -83,6 +83,8 @@ export function createDelegationOrderHandler(deps) {
     res.end(JSON.stringify({ ok: true }));
 
     if (payload.status === "Executed" || payload.status === "Failed") {
+      // CatFee списывает при исполнении — сразу сверяем баланс с порогом
+      void catFeeWatch?.check?.();
       void umami.track(
         payload.status === "Executed" ? "order_executed" : "order_failed",
         {

@@ -35,6 +35,7 @@ function readBody(req) {
  *   api: import("../api/tronFeesClient.js").TronFeesApi;
  *   config: import("../config.js").config;
  *   eventIdCache: ReturnType<import("./eventIdCache.js").createEventIdCache>;
+ *   catFeeWatch?: { check: () => Promise<void> };
  * }} deps
  */
 export function createWebhookServer(deps) {

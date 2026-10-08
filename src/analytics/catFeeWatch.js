@@ -2,7 +2,9 @@ import { log } from "../logger.js";
 
 /**
  * Следит за балансом CatFee через бэкенд и алертит владельца в Telegram,
- * когда баланс опускается ниже порога. Не спамит: не чаще раза в сутки.
+ * когда баланс опускается ниже порога. Проверка запускается после каждого
+ * исполненного/упавшего заказа (см. webhook/delegationOrderHandler) и по
+ * фоновому интервалу. Не спамит: напоминания не чаще minAlertIntervalMs.
  *
  * @param {{
  *   enabled: boolean;
@@ -19,14 +21,14 @@ export function createCatFeeWatcher(opts) {
     enabled,
     getBalanceSun,
     send,
-    lowBalanceSun = 10_000_000,
+    lowBalanceSun = 30_000_000,
     intervalMs = 6 * 3_600_000,
-    minAlertIntervalMs = 24 * 3_600_000,
+    minAlertIntervalMs = 6 * 3_600_000,
     nowImpl = Date.now,
   } = opts;
 
   if (!enabled) {
-    return { stop: () => {} };
+    return { stop: () => {}, check: async () => {} };
   }
 
   let lastAlertAt = 0;
@@ -70,5 +72,5 @@ export function createCatFeeWatcher(opts) {
   timer.unref?.();
   void check();
 
-  return { stop: () => clearInterval(timer) };
+  return { stop: () => clearInterval(timer), check };
 }

@@ -47,7 +47,7 @@ export const config = {
   },
   catFeeWatch: {
     enabled: parseBool("CATFEE_WATCH_ENABLED", true),
-    lowBalanceTrx: Number(optional("CATFEE_LOW_BALANCE_TRX", "10")) * 1_000_000,
+    lowBalanceTrx: Number(optional("CATFEE_LOW_BALANCE_TRX", "30")) * 1_000_000,
     ownerId: optionalInt("OWNER_TELEGRAM_ID", 1124839901),
   },
 };
