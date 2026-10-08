@@ -35,6 +35,7 @@ async function main() {
     getBalanceSun: async () => (await api.getCatFeeBalance()).balanceSun,
     send: (text) => bot.api.sendMessage(config.catFeeWatch.ownerId, text),
     lowBalanceSun: config.catFeeWatch.lowBalanceTrx,
+    dailyReportHourUtc: config.catFeeWatch.dailyReportHourUtc,
   });
 
   if (config.webhookEnabled) {

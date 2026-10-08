@@ -1,10 +1,10 @@
 import { log } from "../logger.js";
 
 /**
- * Следит за балансом CatFee через бэкенд и алертит владельца в Telegram,
- * когда баланс опускается ниже порога. Проверка запускается после каждого
- * исполненного/упавшего заказа (см. webhook/delegationOrderHandler) и по
- * фоновому интервалу. Не спамит: напоминания не чаще minAlertIntervalMs.
+ * Следит за балансом CatFee через бэкенд:
+ *  - алерт владельцу, когда баланс ниже порога (проверка после каждого
+ *    заказа и фоном; напоминания не чаще minAlertIntervalMs);
+ *  - раз в сутки в фиксированный час — текущий баланс с дельтой за сутки.
  *
  * @param {{
  *   enabled: boolean;
@@ -13,6 +13,7 @@ import { log } from "../logger.js";
  *   lowBalanceSun?: number;
  *   intervalMs?: number;
  *   minAlertIntervalMs?: number;
+ *   dailyReportHourUtc?: number;
  *   nowImpl?: () => number;
  * }} opts
  */
@@ -24,11 +25,12 @@ export function createCatFeeWatcher(opts) {
     lowBalanceSun = 30_000_000,
     intervalMs = 6 * 3_600_000,
     minAlertIntervalMs = 6 * 3_600_000,
+    dailyReportHourUtc = 10,
     nowImpl = Date.now,
   } = opts;
 
   if (!enabled) {
-    return { stop: () => {}, check: async () => {} };
+    return { stop: () => {}, check: async () => {}, sendDaily: async () => {} };
   }
 
   let lastAlertAt = 0;
@@ -72,5 +74,59 @@ export function createCatFeeWatcher(opts) {
   timer.unref?.();
   void check();
 
-  return { stop: () => clearInterval(timer), check };
+  /** @type {number | null} */
+  let lastDailyBalanceSun = null;
+  let dailyTimer;
+
+  async function sendDaily() {
+    try {
+      const balanceSun = await getBalanceSun();
+      await send(buildDailyBalanceText(balanceSun, lastDailyBalanceSun));
+      lastDailyBalanceSun = balanceSun;
+      log.info("catfee_daily_sent", { balanceSun });
+    } catch (e) {
+      log.warn("catfee_daily_failed", { err: String(e) });
+    }
+  }
+
+  function scheduleDaily() {
+    const delay = msUntilNextHourUtc(dailyReportHourUtc, new Date(nowImpl()));
+    log.info("catfee_daily_scheduled", { inHours: Math.round(delay / 3_600_000) });
+    dailyTimer = setTimeout(async () => {
+      await sendDaily();
+      scheduleDaily();
+    }, delay);
+    dailyTimer.unref?.();
+  }
+
+  scheduleDaily();
+
+  return {
+    stop: () => {
+      clearInterval(timer);
+      clearTimeout(dailyTimer);
+    },
+    check,
+    sendDaily,
+  };
+}
+
+/** Ежедневное сообщение: баланс и его изменение за сутки. */
+export function buildDailyBalanceText(balanceSun, prevBalanceSun) {
+  const trx = (balanceSun / 1_000_000).toFixed(2);
+  if (prevBalanceSun == null || !Number.isFinite(prevBalanceSun)) {
+    return `⚡ CatFee баланс: ${trx} TRX`;
+  }
+  const delta = balanceSun - prevBalanceSun;
+  const deltaTrx = (delta / 1_000_000).toFixed(2);
+  return `⚡ CatFee баланс: ${trx} TRX (${delta >= 0 ? "+" : ""}${deltaTrx} за сутки)`;
+}
+
+function msUntilNextHourUtc(hourUtc, now) {
+  const target = new Date(now);
+  target.setUTCHours(hourUtc, 0, 0, 0);
+  if (target.getTime() <= now.getTime()) {
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
+  return target.getTime() - now.getTime();
 }

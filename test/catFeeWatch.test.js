@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createCatFeeWatcher } from "../src/analytics/catFeeWatch.js";
+import { buildDailyBalanceText, createCatFeeWatcher } from "../src/analytics/catFeeWatch.js";
 
 function harness({ balanceSun, lowBalanceSun = 10_000_000, nowSequence }) {
   const sent = [];
@@ -90,5 +90,29 @@ test("check() is exposed for per-order triggers", async () => {
   balanceSun = 20_000_000;
   await watcher.check();
   assert.equal(sent.length, 1);
+  watcher.stop();
+});
+
+test("daily balance text: first message has no delta, then shows day-over-day change", () => {
+  assert.equal(buildDailyBalanceText(31_250_016, null), "⚡ CatFee баланс: 31.25 TRX");
+  assert.equal(buildDailyBalanceText(27_750_016, 31_250_016), "⚡ CatFee баланс: 27.75 TRX (-3.50 за сутки)");
+  assert.equal(buildDailyBalanceText(77_750_016, 27_750_016), "⚡ CatFee баланс: 77.75 TRX (+50.00 за сутки)");
+  assert.equal(buildDailyBalanceText(27_750_016, 27_750_016), "⚡ CatFee баланс: 27.75 TRX (+0.00 за сутки)");
+});
+
+test("sendDaily sends, remembers the value, next call carries the delta", async () => {
+  let balanceSun = 31_250_016;
+  const sent = [];
+  const watcher = createCatFeeWatcher({
+    enabled: true,
+    getBalanceSun: async () => balanceSun,
+    send: async (t) => sent.push(t),
+  });
+  await watcher.sendDaily();
+  assert.deepEqual(sent, ["⚡ CatFee баланс: 31.25 TRX"]);
+
+  balanceSun = 28_000_016; // за сутки потратили
+  await watcher.sendDaily();
+  assert.equal(sent[1], "⚡ CatFee баланс: 28.00 TRX (-3.25 за сутки)");
   watcher.stop();
 });
