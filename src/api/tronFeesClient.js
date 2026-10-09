@@ -209,6 +209,13 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
     },
 
     /** @param {string} partnerId */
+    async partnerWebhookSecret(partnerId) {
+      return /** @type {Promise<{ webhookSecret: string }>} */ (
+        request(`/api/admin/partners/${partnerId}/webhook-secret`)
+      );
+    },
+
+    /** @param {string} partnerId */
     async partnerBalance(partnerId) {
       return /** @type {Promise<PartnerBalance>} */ (
         request(`/api/admin/partners/${partnerId}/balance`)

@@ -16,6 +16,7 @@ const CB = {
   reject: (/** @type {string} */ id) => `ptnr:r:${id}`,
   topup: (/** @type {string} */ id) => `ptnr:topup:${id}`,
   newKey: (/** @type {string} */ id) => `ptnr:key:${id}`,
+  secret: (/** @type {string} */ id) => `ptnr:sec:${id}`,
 };
 
 const ALL_PARTNER_CALLBACKS = [
@@ -105,7 +106,8 @@ async function showPartnerCabinet(ctx, deps, partner) {
       reply_markup: new InlineKeyboard()
         .text("⚡️ Пополнить депозит", CB.topup(partner.id))
         .row()
-        .text("🔑 Новый API-ключ", CB.newKey(partner.id)),
+        .text("🔑 Новый API-ключ", CB.newKey(partner.id))
+        .text("🔐 Webhook-секрет", CB.secret(partner.id)),
     },
   );
 }
@@ -166,6 +168,22 @@ export function registerPartnerCallbacks(bot, deps) {
     await ctx.editMessageText(
       "Сумма пополнения в TRX (минимум 50)? Отправьте число следующим сообщением.",
     );
+    await ctx.answerCallbackQuery();
+  });
+
+  bot.callbackQuery(/^ptnr:sec:/, async (ctx) => {
+    const [, , partnerId] = ctx.callbackQuery.data.split(":");
+    try {
+      const { webhookSecret } = await deps.api.partnerWebhookSecret(partnerId);
+      await ctx.editMessageText(
+        "Webhook-секрет для проверки подписи X-TronVolt-Signature (sha256=HMAC_SHA256(секрет, тело)):\n" +
+          `<code>${escapeHtml(webhookSecret)}</code>`,
+        { parse_mode: "HTML" },
+      );
+    } catch (err) {
+      log.error("partner_secret_failed", err);
+      await ctx.editMessageText("Не удалось получить секрет, попробуйте позже: /partner");
+    }
     await ctx.answerCallbackQuery();
   });
 
