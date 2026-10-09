@@ -8,6 +8,9 @@ const APPLICATION_COOLDOWN_MS = 60 * 60 * 1000;
 /** @type {Map<number, string>} chat id → partner id awaiting a top-up amount */
 const pendingTopUps = new Map();
 
+/** @type {Map<number, string>} chat id → partner id awaiting a webhook URL */
+const pendingWebhookEdits = new Map();
+
 /** @type {Map<number, number>} last application attempt per telegram user (in-memory, best effort) */
 const lastApplicationAt = new Map();
 
@@ -17,6 +20,7 @@ const CB = {
   topup: (/** @type {string} */ id) => `ptnr:topup:${id}`,
   newKey: (/** @type {string} */ id) => `ptnr:key:${id}`,
   secret: (/** @type {string} */ id) => `ptnr:sec:${id}`,
+  hook: (/** @type {string} */ id) => `ptnr:hook:${id}`,
 };
 
 const ALL_PARTNER_CALLBACKS = [
@@ -95,18 +99,25 @@ async function showPartnerCabinet(ctx, deps, partner) {
     // keep fallback text
   }
 
+  const hookText = partner.webhookUrl
+    ? `🔗 Вебхук: ${escapeHtml(partner.webhookUrl)}`
+    : "🔗 Вебхук: не задан (уведомления о заказах не приходят)";
+
   await ctx.reply(
     `🤝 Кабинет партнёра — ${escapeHtml(partner.name)}\n\n` +
       `${balanceText}\n` +
+      `${hookText}\n` +
       `Базовый URL: https://tron-fees-api.tronpay.me/api/b2b/v1\n\n` +
-      "Документация по эндпоинтам — в сообщении с ключом.",
+      "Документация: https://www.tronvolt.com/docs",
     {
       parse_mode: "HTML",
       reply_markup: new InlineKeyboard()
         .text("⚡️ Пополнить депозит", CB.topup(partner.id))
         .row()
         .text("🔑 Новый API-ключ", CB.newKey(partner.id))
-        .text("🔐 Webhook-секрет", CB.secret(partner.id)),
+        .text("🔐 Webhook-секрет", CB.secret(partner.id))
+        .row()
+        .text("🔗 Изменить вебхук", CB.hook(partner.id)),
     },
   );
 }
@@ -167,6 +178,21 @@ export function registerPartnerCallbacks(bot, deps) {
     await ctx.answerCallbackQuery();
   });
 
+  bot.callbackQuery(/^ptnr:hook:/, async (ctx) => {
+    const [, , partnerId] = ctx.callbackQuery.data.split(":");
+    const chatId = ctx.callbackQuery.message?.chat.id;
+    if (!chatId) {
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
+    pendingWebhookEdits.set(chatId, partnerId);
+    await ctx.editMessageText(
+      "Отправьте следующим сообщением URL вебхука (https://…) — или «-», чтобы убрать вебхук.",
+    );
+    await ctx.answerCallbackQuery();
+  });
+
   bot.callbackQuery(/^ptnr:sec:/, async (ctx) => {
     const [, , partnerId] = ctx.callbackQuery.data.split(":");
     try {
@@ -218,6 +244,34 @@ async function notifyApplicant(bot, deps, partnerId, approved) {
   } catch (err) {
     log.error("partner_applicant_notify_failed", err);
   }
+}
+
+/**
+ * Handles a plain text message while a webhook URL is pending for this chat.
+ * @param {import("grammy").Context} ctx
+ * @param {{ api: import("../../api/tronFeesClient.js").TronFeesApi }} deps
+ */
+export async function handlePendingWebhookEdit(ctx, deps) {
+  const chatId = ctx.chat?.id;
+  const partnerId = chatId ? pendingWebhookEdits.get(chatId) : undefined;
+  if (!chatId || !partnerId) return false;
+
+  const raw = (ctx.message?.text ?? "").trim();
+  const url = raw === "-" ? "" : raw;
+  if (url && !/^https?:\/\//i.test(url)) {
+    await ctx.reply("Вебхук должен начинаться с http:// или https://. Попробуйте ещё раз или «-» чтобы убрать.");
+    return true;
+  }
+
+  pendingWebhookEdits.delete(chatId);
+  try {
+    await deps.api.setPartnerWebhookUrl(partnerId, url);
+    await ctx.reply(url ? `✅ Вебхук обновлён: ${escapeHtml(url)}` : "✅ Вебхук убран — уведомления о заказах приходить не будут.");
+  } catch (err) {
+    log.error("partner_webhook_update_failed", err);
+    await ctx.reply("Не получилось сохранить вебхук, попробуйте позже: /partner");
+  }
+  return true;
 }
 
 /**

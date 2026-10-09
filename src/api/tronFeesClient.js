@@ -211,6 +211,17 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
       );
     },
 
+    /**
+     * @param {string} partnerId
+     * @param {string} webhookUrl - new URL, or "" to remove the webhook
+     */
+    async setPartnerWebhookUrl(partnerId, webhookUrl) {
+      return request(`/api/admin/partners/${partnerId}`, {
+        method: "PUT",
+        body: { webhookUrl },
+      });
+    },
+
     /** @param {string} partnerId */
     async partnerBalance(partnerId) {
       return /** @type {Promise<PartnerBalance>} */ (

@@ -26,7 +26,7 @@ export function createPartnerApplicationConversation(deps) {
     }
 
     await ctx.reply(
-      `2/2 — URL вебхука для уведомлений о заказах (необязательно).\n` +
+      `2/2 — URL вебхука для уведомлений о заказах (необязательно, можно изменить позже в кабинете).\n` +
         `Отправьте https://… или «-» чтобы пропустить.`,
     );
     const hookMsg = await conversation.wait();

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BUY_ENERGY_LABEL, REFERRALS_LABEL, mainMenuKeyboard } from "../src/bot/menu.js";
+import { BUY_ENERGY_LABEL, PARTNER_LABEL, REFERRALS_LABEL, mainMenuKeyboard } from "../src/bot/menu.js";
 import { commandArgs } from "../src/bot/commandArgs.js";
 import { isValidTronAddress } from "../src/bot/tronAddress.js";
 import { formatUserError } from "../src/bot/errors.js";
@@ -10,7 +10,7 @@ test("main menu always shows buy energy and referrals for everyone", () => {
   const kb = mainMenuKeyboard();
   const markup = kb.reply_markup ?? kb;
   const buttons = markup.keyboard.map((row) => row.map((b) => b.text));
-  assert.deepEqual(buttons, [[BUY_ENERGY_LABEL], [REFERRALS_LABEL]]);
+  assert.deepEqual(buttons, [[BUY_ENERGY_LABEL], [REFERRALS_LABEL], [PARTNER_LABEL]]);
   assert.equal(markup.resize_keyboard, true);
 });
 

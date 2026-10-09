@@ -4,6 +4,7 @@ import { createBuyEnergyConversation } from "./conversations/buyEnergy.js";
 import { createPartnerApplicationConversation } from "./conversations/partnerApplication.js";
 import {
   handlePartner,
+  handlePendingWebhookEdit,
   registerPartnerCallbacks,
   createOwnerNotifier,
   handlePendingTopUpAmount,
@@ -11,7 +12,7 @@ import {
 import { handleHelp } from "./handlers/help.js";
 import { handleReferrals } from "./handlers/referrals.js";
 import { handleStart } from "./handlers/start.js";
-import { BUY_ENERGY_LABEL, REFERRALS_LABEL } from "./menu.js";
+import { BUY_ENERGY_LABEL, PARTNER_LABEL, REFERRALS_LABEL } from "./menu.js";
 import { log } from "../logger.js";
 
 /**
@@ -44,8 +45,11 @@ export function registerHandlers(bot, deps) {
   bot.command("help", (ctx) => handleHelp(ctx, deps));
   bot.command("partner", (ctx) => handlePartner(ctx, partnerDeps));
 
-  // Awaiting a partner top-up amount: swallow the message here.
+  // Awaiting a partner top-up amount or webhook URL: swallow the message here.
   bot.on("message:text", async (ctx, next) => {
+    if (await handlePendingWebhookEdit(ctx, deps)) {
+      return;
+    }
     if (await handlePendingTopUpAmount(ctx, deps)) {
       return;
     }
@@ -63,6 +67,13 @@ export function registerHandlers(bot, deps) {
     (ctx) => ctx.message.text.trim() === REFERRALS_LABEL,
     async (ctx) => {
       await handleReferrals(ctx, deps);
+    },
+  );
+
+  bot.on("message:text").filter(
+    (ctx) => ctx.message.text.trim() === PARTNER_LABEL,
+    async (ctx) => {
+      await handlePartner(ctx, partnerDeps);
     },
   );
 }

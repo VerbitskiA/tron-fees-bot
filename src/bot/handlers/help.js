@@ -13,7 +13,7 @@ export async function handleHelp(ctx, _deps) {
       "For any questions or consultation about the service, contact support:",
       "@tron_volt_support",
       "",
-      `API access, ${BRAND_NAME} integration into your service or product — write there as well; we will guide you and agree on the details.`,
+      `API access for your service: send /partner to apply — ${BRAND_NAME} keys, docs and the deposit are managed in the partner cabinet.`,
       "",
       "👥 Referral rewards you earn are applied automatically as a discount when you buy energy.",
     ].join("\n"),
