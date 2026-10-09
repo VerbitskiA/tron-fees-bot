@@ -5,6 +5,9 @@ import { escapeHtml } from "../htmlEscape.js";
 
 const APPLICATION_COOLDOWN_MS = 60 * 60 * 1000;
 
+/** Preset top-up amounts in TRX (minimum accepted is 10). */
+const TOP_UP_PRESETS_TRX = [10, 30, 50];
+
 /** @type {Map<number, string>} chat id → partner id awaiting a top-up amount */
 const pendingTopUps = new Map();
 
@@ -21,6 +24,8 @@ const CB = {
   newKey: (/** @type {string} */ id) => `ptnr:key:${id}`,
   secret: (/** @type {string} */ id) => `ptnr:sec:${id}`,
   hook: (/** @type {string} */ id) => `ptnr:hook:${id}`,
+  topupAmount: (/** @type {string} */ id, /** @type {number} */ amount) => `ptnr:tp:${id}:${amount}`,
+  topupCustom: (/** @type {string} */ id) => `ptnr:tpc:${id}`,
 };
 
 const ALL_PARTNER_CALLBACKS = [
@@ -165,6 +170,34 @@ export function registerPartnerCallbacks(bot, deps) {
 
   bot.callbackQuery(/^ptnr:topup:/, async (ctx) => {
     const [, , partnerId] = ctx.callbackQuery.data.split(":");
+    await ctx.editMessageText(
+      "Пополнение депозита (зачисление автоматическое после оплаты). Выберите сумму:",
+      {
+        reply_markup: new InlineKeyboard()
+          .text("10 TRX", CB.topupAmount(partnerId, 10))
+          .text("30 TRX", CB.topupAmount(partnerId, 30))
+          .text("50 TRX", CB.topupAmount(partnerId, 50))
+          .row()
+          .text("✏️ Своя сумма", CB.topupCustom(partnerId)),
+      },
+    );
+    await ctx.answerCallbackQuery();
+  });
+
+  bot.callbackQuery(/^ptnr:tp:/, async (ctx) => {
+    const [, , partnerId, amountRaw] = ctx.callbackQuery.data.split(":");
+    const amount = Number(amountRaw);
+    if (!partnerId || !Number.isFinite(amount) || amount < 10) {
+      await ctx.answerCallbackQuery({ text: "Некорректная сумма" });
+      return;
+    }
+
+    await ctx.answerCallbackQuery({ text: "Создаю инвойс…" });
+    await sendTopUpInvoice(ctx, deps, partnerId, amount);
+  });
+
+  bot.callbackQuery(/^ptnr:tpc:/, async (ctx) => {
+    const [, , partnerId] = ctx.callbackQuery.data.split(":");
     const chatId = ctx.callbackQuery.message?.chat.id;
     if (!chatId) {
       await ctx.answerCallbackQuery();
@@ -172,9 +205,7 @@ export function registerPartnerCallbacks(bot, deps) {
     }
 
     pendingTopUps.set(chatId, partnerId);
-    await ctx.editMessageText(
-      "Сумма пополнения в TRX (минимум 50)? Отправьте число следующим сообщением.",
-    );
+    await ctx.editMessageText("Сумма пополнения в TRX (минимум 10)? Отправьте число следующим сообщением.");
     await ctx.answerCallbackQuery();
   });
 
@@ -275,24 +306,14 @@ export async function handlePendingWebhookEdit(ctx, deps) {
 }
 
 /**
- * Handles a plain text message while a top-up amount is pending for this chat.
  * @param {import("grammy").Context} ctx
  * @param {{ api: import("../../api/tronFeesClient.js").TronFeesApi }} deps
+ * @param {string} partnerId
+ * @param {number} amountTrx
  */
-export async function handlePendingTopUpAmount(ctx, deps) {
-  const chatId = ctx.chat?.id;
-  const partnerId = chatId ? pendingTopUps.get(chatId) : undefined;
-  if (!chatId || !partnerId) return false;
-
-  const amount = Number((ctx.message?.text ?? "").replace(",", ".").trim());
-  if (!Number.isFinite(amount) || amount < 50) {
-    await ctx.reply("Нужно число ≥ 50. Попробуйте ещё раз или откройте кабинет: /partner");
-    return true;
-  }
-
-  pendingTopUps.delete(chatId);
+async function sendTopUpInvoice(ctx, deps, partnerId, amountTrx) {
   try {
-    const invoice = await deps.api.createPartnerTopUpInvoice(partnerId, amount);
+    const invoice = await deps.api.createPartnerTopUpInvoice(partnerId, amountTrx);
     await ctx.reply(
       "Инвойс на пополнение депозита:\n\n" +
         `Адрес: <code>${escapeHtml(invoice.payAddress)}</code>\n` +
@@ -304,6 +325,26 @@ export async function handlePendingTopUpAmount(ctx, deps) {
     log.error("partner_topup_invoice_failed", err);
     await ctx.reply("Не получилось создать инвойс, попробуйте позже: /partner");
   }
+}
+
+/**
+ * Handles a plain text message while a top-up amount is pending for this chat.
+ * @param {import("grammy").Context} ctx
+ * @param {{ api: import("../../api/tronFeesClient.js").TronFeesApi }} deps
+ */
+export async function handlePendingTopUpAmount(ctx, deps) {
+  const chatId = ctx.chat?.id;
+  const partnerId = chatId ? pendingTopUps.get(chatId) : undefined;
+  if (!chatId || !partnerId) return false;
+
+  const amount = Number((ctx.message?.text ?? "").replace(",", ".").trim());
+  if (!Number.isFinite(amount) || amount < 10) {
+    await ctx.reply("Нужно число ≥ 10. Попробуйте ещё раз или откройте кабинет: /partner");
+    return true;
+  }
+
+  pendingTopUps.delete(chatId);
+  await sendTopUpInvoice(ctx, deps, partnerId, amount);
   return true;
 }
 
