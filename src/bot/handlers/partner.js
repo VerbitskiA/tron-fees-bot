@@ -12,7 +12,7 @@ const pendingTopUps = new Map();
 const lastApplicationAt = new Map();
 
 const CB = {
-  approve: (/** @type {string} */ id, /** @type {number} */ d) => `ptnr:a:${id}:${d}`,
+  approve: (/** @type {string} */ id) => `ptnr:a:${id}`,
   reject: (/** @type {string} */ id) => `ptnr:r:${id}`,
   topup: (/** @type {string} */ id) => `ptnr:topup:${id}`,
   newKey: (/** @type {string} */ id) => `ptnr:key:${id}`,
@@ -98,7 +98,6 @@ async function showPartnerCabinet(ctx, deps, partner) {
   await ctx.reply(
     `🤝 Кабинет партнёра — ${escapeHtml(partner.name)}\n\n` +
       `${balanceText}\n` +
-      `Скидка: ${partner.discountPercent}%\n` +
       `Базовый URL: https://tron-fees-api.tronpay.me/api/b2b/v1\n\n` +
       "Документация по эндпоинтам — в сообщении с ключом.",
     {
@@ -119,26 +118,23 @@ async function showPartnerCabinet(ctx, deps, partner) {
  */
 export function registerPartnerCallbacks(bot, deps) {
   bot.callbackQuery(/^ptnr:a:/, async (ctx) => {
-    const [, , partnerId, discRaw] = ctx.callbackQuery.data.split(":");
-    const discount = Number(discRaw);
-    if (!partnerId || !Number.isFinite(discount)) {
+    const [, , partnerId] = ctx.callbackQuery.data.split(":");
+    if (!partnerId) {
       await ctx.answerCallbackQuery();
       return;
     }
 
     try {
-      await deps.api.approvePartner(partnerId, discount);
+      await deps.api.approvePartner(partnerId);
     } catch (err) {
       log.error("partner_approve_failed", err);
       await ctx.answerCallbackQuery({ text: "Ошибка одобрения — смотри логи" });
       return;
     }
 
-    await ctx.editMessageText(
-      `✅ Одобрен (${discount}%): ${partnerId}`,
-    );
+    await ctx.editMessageText(`✅ Одобрен: ${partnerId}`);
     await ctx.answerCallbackQuery({ text: "Одобрено" });
-    await notifyApplicant(bot, deps, partnerId, true, discount);
+    await notifyApplicant(bot, deps, partnerId, true);
   });
 
   bot.callbackQuery(/^ptnr:r:/, async (ctx) => {
@@ -153,7 +149,7 @@ export function registerPartnerCallbacks(bot, deps) {
 
     await ctx.editMessageText(`🚫 Отклонён: ${partnerId}`);
     await ctx.answerCallbackQuery({ text: "Отклонено" });
-    await notifyApplicant(bot, deps, partnerId, false, 0);
+    await notifyApplicant(bot, deps, partnerId, false);
   });
 
   bot.callbackQuery(/^ptnr:topup:/, async (ctx) => {
@@ -207,7 +203,7 @@ export function registerPartnerCallbacks(bot, deps) {
  * @param {import("grammy").Bot} bot
  * @param {{ api: import("../../api/tronFeesClient.js").TronFeesApi; ownerId: number }} deps
  */
-async function notifyApplicant(bot, deps, partnerId, approved, discount) {
+async function notifyApplicant(bot, deps, partnerId, approved) {
   try {
     const partners = await deps.api.listPartners();
     const partner = partners.find((p) => p.id === partnerId);
@@ -216,7 +212,7 @@ async function notifyApplicant(bot, deps, partnerId, approved, discount) {
     await bot.api.sendMessage(
       partner.contactTelegramId,
       approved
-        ? `✅ Ваша партнёрская заявка одобрена (скидка ${discount}%). Ключ активен — кабинет: /partner`
+        ? "✅ Ваша партнёрская заявка одобрена. Ключ активен — кабинет: /partner"
         : "🚫 Ваша партнёрская заявка отклонена. Вопросы — @tron_volt_support",
     );
   } catch (err) {
@@ -272,9 +268,7 @@ export function createOwnerNotifier(bot, deps) {
         `🤝 Новая партнёрская заявка:\n${truncate(name)} (tg:${contactTelegramId})`,
         {
           reply_markup: new InlineKeyboard()
-            .text("✅ 10%", CB.approve(partnerId, 10))
-            .text("✅ 15%", CB.approve(partnerId, 15))
-            .row()
+            .text("✅ Одобрить", CB.approve(partnerId))
             .text("🚫 Отклонить", CB.reject(partnerId)),
         },
       );

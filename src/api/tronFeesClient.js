@@ -187,13 +187,9 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
 
     /**
      * @param {string} partnerId
-     * @param {number} discountPercent
      */
-    async approvePartner(partnerId, discountPercent) {
-      return request(`/api/admin/partners/${partnerId}/approve`, {
-        method: "POST",
-        body: { discountPercent },
-      });
+    async approvePartner(partnerId) {
+      return request(`/api/admin/partners/${partnerId}/approve`, { method: "POST" });
     },
 
     /** @param {string} partnerId */
@@ -313,7 +309,6 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
  *   contact: string | null;
  *   contactTelegramId: number | null;
  *   status: string;
- *   discountPercent: number;
  *   webhookUrl: string | null;
  *   createdAt: string;
  *   apiKeys: {{ id: string; prefix: string; status: string; createdAt: string; lastUsedAt: string | null }[];
