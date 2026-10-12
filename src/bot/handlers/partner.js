@@ -61,7 +61,7 @@ export async function handlePartner(ctx, deps) {
     partners = await deps.api.listPartners();
   } catch (err) {
     log.error("partner_list_failed", err);
-    await ctx.reply("Партнёрский сервис временно недоступен, попробуйте позже.");
+    await ctx.reply("Partner service is temporarily unavailable — try again later.");
     return;
   }
 
@@ -74,7 +74,7 @@ export async function handlePartner(ctx, deps) {
   const last = lastApplicationAt.get(telegramId) ?? 0;
   if (Date.now() - last < APPLICATION_COOLDOWN_MS) {
     const minutes = Math.ceil((APPLICATION_COOLDOWN_MS - (Date.now() - last)) / 60000);
-    await ctx.reply(`Заявку можно подавать раз в час — попробуйте через ~${minutes} мин.`);
+    await ctx.reply(`Applications are limited to one per hour — try again in ~${minutes} min.`);
     return;
   }
 
@@ -90,45 +90,45 @@ async function showPartnerCabinet(ctx, deps, partner) {
   if (partner.status !== "Active") {
     await ctx.reply(
       partner.status === "Pending"
-        ? "⏳ Ваша заявка на партнёрство ещё на рассмотрении."
-        : "🚫 Партнёрский доступ приостановлен. Свяжитесь с поддержкой @tron_volt_support.",
+        ? "⏳ Your partner application is still under review."
+        : "🚫 Partner access is suspended. Contact support: @tron_volt_support",
     );
     return;
   }
 
-  let balanceText = "баланс недоступен";
+  let balanceText = "balance unavailable";
   try {
     const balance = await deps.api.partnerBalance(partner.id);
-    balanceText = `💰 Депозит: ${balance.availableTrx} TRX доступно, ${balance.heldTrx} TRX зарезервировано`;
+    balanceText = `💰 Deposit: ${balance.availableTrx} TRX available, ${balance.heldTrx} TRX held`;
   } catch {
     // keep fallback text
   }
 
   const hookText = partner.webhookUrl
-    ? `🔗 Вебхук: ${escapeHtml(partner.webhookUrl)}`
-    : "🔗 Вебхук: не задан (уведомления о заказах не приходят)";
+    ? `🔗 Webhook: ${escapeHtml(partner.webhookUrl)}`
+    : "🔗 Webhook: not set (no order notifications)";
 
   await ctx.reply(
-    `🤝 Кабинет партнёра — ${escapeHtml(partner.name)}\n\n` +
+    `🤝 Partner cabinet — ${escapeHtml(partner.name)}\n\n` +
       `${balanceText}\n` +
       `${hookText}\n` +
-      `Базовый URL: https://tron-fees-api.tronpay.me/api/b2b/v1\n\n` +
-      "Документация: https://www.tronvolt.com/docs",
+      `Base URL: https://tron-fees-api.tronpay.me/api/b2b/v1\n\n` +
+      "Docs: https://www.tronvolt.com/docs",
     {
       parse_mode: "HTML",
       reply_markup: new InlineKeyboard()
-        .text("⚡️ Пополнить депозит", CB.topup(partner.id))
+        .text("⚡️ Top up deposit", CB.topup(partner.id))
         .row()
-        .text("🔑 Новый API-ключ", CB.newKey(partner.id))
-        .text("🔐 Webhook-секрет", CB.secret(partner.id))
+        .text("🔑 New API key", CB.newKey(partner.id))
+        .text("🔐 Webhook secret", CB.secret(partner.id))
         .row()
-        .text("🔗 Изменить вебхук", CB.hook(partner.id)),
+        .text("🔗 Change webhook", CB.hook(partner.id)),
     },
   );
 }
 
 /**
- * Owner-side: карточка заявки с кнопками одобрения.
+ * Owner-side: application card with approve/reject buttons.
  * @param {import("grammy").Bot} bot
  * @param {{ api: import("../../api/tronFeesClient.js").TronFeesApi; ownerId: number }} deps
  */
@@ -144,12 +144,12 @@ export function registerPartnerCallbacks(bot, deps) {
       await deps.api.approvePartner(partnerId);
     } catch (err) {
       log.error("partner_approve_failed", err);
-      await ctx.answerCallbackQuery({ text: "Ошибка одобрения — смотри логи" });
+      await ctx.answerCallbackQuery({ text: "Approval failed — check the logs" });
       return;
     }
 
-    await ctx.editMessageText(`✅ Одобрен: ${partnerId}`);
-    await ctx.answerCallbackQuery({ text: "Одобрено" });
+    await ctx.editMessageText(`✅ Approved: ${partnerId}`);
+    await ctx.answerCallbackQuery({ text: "Approved" });
     await notifyApplicant(bot, deps, partnerId, true);
   });
 
@@ -159,26 +159,26 @@ export function registerPartnerCallbacks(bot, deps) {
       await deps.api.rejectPartner(partnerId);
     } catch (err) {
       log.error("partner_reject_failed", err);
-      await ctx.answerCallbackQuery({ text: "Ошибка отклонения — смотри логи" });
+      await ctx.answerCallbackQuery({ text: "Rejection failed — check the logs" });
       return;
     }
 
-    await ctx.editMessageText(`🚫 Отклонён: ${partnerId}`);
-    await ctx.answerCallbackQuery({ text: "Отклонено" });
+    await ctx.editMessageText(`🚫 Rejected: ${partnerId}`);
+    await ctx.answerCallbackQuery({ text: "Rejected" });
     await notifyApplicant(bot, deps, partnerId, false);
   });
 
   bot.callbackQuery(/^ptnr:topup:/, async (ctx) => {
     const [, , partnerId] = ctx.callbackQuery.data.split(":");
     await ctx.editMessageText(
-      "Пополнение депозита (зачисление автоматическое после оплаты). Выберите сумму:",
+      "Deposit top-up (credited automatically after payment). Choose an amount:",
       {
         reply_markup: new InlineKeyboard()
           .text("10 TRX", CB.topupAmount(partnerId, 10))
           .text("30 TRX", CB.topupAmount(partnerId, 30))
           .text("50 TRX", CB.topupAmount(partnerId, 50))
           .row()
-          .text("✏️ Своя сумма", CB.topupCustom(partnerId)),
+          .text("✏️ Custom amount", CB.topupCustom(partnerId)),
       },
     );
     await ctx.answerCallbackQuery();
@@ -188,11 +188,11 @@ export function registerPartnerCallbacks(bot, deps) {
     const [, , partnerId, amountRaw] = ctx.callbackQuery.data.split(":");
     const amount = Number(amountRaw);
     if (!partnerId || !Number.isFinite(amount) || amount < 10) {
-      await ctx.answerCallbackQuery({ text: "Некорректная сумма" });
+      await ctx.answerCallbackQuery({ text: "Invalid amount" });
       return;
     }
 
-    await ctx.answerCallbackQuery({ text: "Создаю инвойс…" });
+    await ctx.answerCallbackQuery({ text: "Creating invoice…" });
     await sendTopUpInvoice(ctx, deps, partnerId, amount);
   });
 
@@ -205,7 +205,7 @@ export function registerPartnerCallbacks(bot, deps) {
     }
 
     pendingTopUps.set(chatId, partnerId);
-    await ctx.editMessageText("Сумма пополнения в TRX (минимум 10)? Отправьте число следующим сообщением.");
+    await ctx.editMessageText("Top-up amount in TRX (minimum 10)? Send the number as your next message.");
     await ctx.answerCallbackQuery();
   });
 
@@ -219,7 +219,7 @@ export function registerPartnerCallbacks(bot, deps) {
 
     pendingWebhookEdits.set(chatId, partnerId);
     await ctx.editMessageText(
-      "Отправьте следующим сообщением URL вебхука (https://…) — или «-», чтобы убрать вебхук.",
+      "Send the webhook URL (https://…) as your next message — or \"-\" to remove the webhook.",
     );
     await ctx.answerCallbackQuery();
   });
@@ -229,13 +229,13 @@ export function registerPartnerCallbacks(bot, deps) {
     try {
       const { webhookSecret } = await deps.api.partnerWebhookSecret(partnerId);
       await ctx.editMessageText(
-        "Webhook-секрет для проверки подписи X-TronVolt-Signature (sha256=HMAC_SHA256(секрет, тело)):\n" +
+        "Webhook secret for X-TronVolt-Signature verification (sha256=HMAC_SHA256(secret, body)):\n" +
           `<code>${escapeHtml(webhookSecret)}</code>`,
         { parse_mode: "HTML" },
       );
     } catch (err) {
       log.error("partner_secret_failed", err);
-      await ctx.editMessageText("Не удалось получить секрет, попробуйте позже: /partner");
+      await ctx.editMessageText("Could not fetch the secret — try again later: /partner");
     }
     await ctx.answerCallbackQuery();
   });
@@ -245,12 +245,12 @@ export function registerPartnerCallbacks(bot, deps) {
     try {
       const issued = await deps.api.issuePartnerKey(partnerId);
       await ctx.editMessageText(
-        "Новый API-ключ (показывается один раз):\n" + `<code>${escapeHtml(issued.key)}</code>`,
+        "New API key (shown once):\n" + `<code>${escapeHtml(issued.key)}</code>`,
         { parse_mode: "HTML" },
       );
     } catch (err) {
       log.error("partner_key_issue_failed", err);
-      await ctx.editMessageText("Не удалось выпустить ключ, попробуйте позже: /partner");
+      await ctx.editMessageText("Could not issue a key — try again later: /partner");
     }
     await ctx.answerCallbackQuery();
   });
@@ -269,8 +269,8 @@ async function notifyApplicant(bot, deps, partnerId, approved) {
     await bot.api.sendMessage(
       partner.contactTelegramId,
       approved
-        ? "✅ Ваша партнёрская заявка одобрена. Ключ активен — кабинет: /partner"
-        : "🚫 Ваша партнёрская заявка отклонена. Вопросы — @tron_volt_support",
+        ? "✅ Your partner application is approved. The key is active — cabinet: /partner"
+        : "🚫 Your partner application was declined. Questions — @tron_volt_support",
     );
   } catch (err) {
     log.error("partner_applicant_notify_failed", err);
@@ -290,17 +290,17 @@ export async function handlePendingWebhookEdit(ctx, deps) {
   const raw = (ctx.message?.text ?? "").trim();
   const url = raw === "-" ? "" : raw;
   if (url && !/^https?:\/\//i.test(url)) {
-    await ctx.reply("Вебхук должен начинаться с http:// или https://. Попробуйте ещё раз или «-» чтобы убрать.");
+    await ctx.reply("Webhook must start with http:// or https://. Try again, or send \"-\" to remove it.");
     return true;
   }
 
   pendingWebhookEdits.delete(chatId);
   try {
     await deps.api.setPartnerWebhookUrl(partnerId, url);
-    await ctx.reply(url ? `✅ Вебхук обновлён: ${escapeHtml(url)}` : "✅ Вебхук убран — уведомления о заказах приходить не будут.");
+    await ctx.reply(url ? `✅ Webhook updated: ${escapeHtml(url)}` : "✅ Webhook removed — order notifications will not arrive.");
   } catch (err) {
     log.error("partner_webhook_update_failed", err);
-    await ctx.reply("Не получилось сохранить вебхук, попробуйте позже: /partner");
+    await ctx.reply("Could not save the webhook — try again later: /partner");
   }
   return true;
 }
@@ -315,15 +315,15 @@ async function sendTopUpInvoice(ctx, deps, partnerId, amountTrx) {
   try {
     const invoice = await deps.api.createPartnerTopUpInvoice(partnerId, amountTrx);
     await ctx.reply(
-      "Инвойс на пополнение депозита:\n\n" +
-        `Адрес: <code>${escapeHtml(invoice.payAddress)}</code>\n` +
-        `Сумма: <b>${escapeHtml(String(invoice.payAmount))} ${escapeHtml(invoice.payCurrency)}</b>\n\n` +
-        "После оплаты депозит зачислится автоматически — пришлём подтверждение сюда.",
+      "Top-up invoice:\n\n" +
+        `Address: <code>${escapeHtml(invoice.payAddress)}</code>\n` +
+        `Amount: <b>${escapeHtml(String(invoice.payAmount))} ${escapeHtml(invoice.payCurrency)}</b>\n\n` +
+        "The deposit is credited automatically after payment — we will confirm here.",
       { parse_mode: "HTML" },
     );
   } catch (err) {
     log.error("partner_topup_invoice_failed", err);
-    await ctx.reply("Не получилось создать инвойс, попробуйте позже: /partner");
+    await ctx.reply("Could not create the invoice — try again later: /partner");
   }
 }
 
@@ -339,7 +339,7 @@ export async function handlePendingTopUpAmount(ctx, deps) {
 
   const amount = Number((ctx.message?.text ?? "").replace(",", ".").trim());
   if (!Number.isFinite(amount) || amount < 10) {
-    await ctx.reply("Нужно число ≥ 10. Попробуйте ещё раз или откройте кабинет: /partner");
+    await ctx.reply("Must be a number ≥ 10. Try again or open the cabinet: /partner");
     return true;
   }
 
@@ -360,11 +360,11 @@ export function createOwnerNotifier(bot, deps) {
     try {
       await bot.api.sendMessage(
         deps.ownerId,
-        `🤝 Новая партнёрская заявка:\n${truncate(name)} (tg:${contactTelegramId})`,
+        `🤝 New partner application:\n${truncate(name)} (tg:${contactTelegramId})`,
         {
           reply_markup: new InlineKeyboard()
-            .text("✅ Одобрить", CB.approve(partnerId))
-            .text("🚫 Отклонить", CB.reject(partnerId)),
+            .text("✅ Approve", CB.approve(partnerId))
+            .text("🚫 Reject", CB.reject(partnerId)),
         },
       );
     } catch (err) {

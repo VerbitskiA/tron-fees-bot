@@ -14,26 +14,26 @@ export function createPartnerApplicationConversation(deps) {
   /** @param {import("@grammyjs/conversations").Conversation} conversation @param {import("grammy").Context} ctx */
   return async function partnerApplication(conversation, ctx) {
     await ctx.reply(
-      "Заявка на партнёрство TronVolt (API аренды энергии).\n\n" +
-        "1/2 — Как называется ваш сервис? (одно сообщение, до 200 символов)",
+      "TronVolt partner application (Energy rental API).\n\n" +
+        "1/2 — What is your service called? (one message, up to 200 characters)",
     );
 
     const nameMsg = await conversation.wait();
     const name = (nameMsg.message?.text ?? "").trim().slice(0, 200);
     if (!name) {
-      await ctx.reply("Название не принято. Попробуйте ещё раз: /partner");
+      await ctx.reply("Name not accepted. Try again: /partner");
       return;
     }
 
     await ctx.reply(
-      `2/2 — URL вебхука для уведомлений о заказах (необязательно, можно изменить позже в кабинете).\n` +
-        `Отправьте https://… или «-» чтобы пропустить.`,
+      `2/2 — Webhook URL for order notifications (optional, can be changed later in the cabinet).\n` +
+        `Send https://… or "-" to skip.`,
     );
     const hookMsg = await conversation.wait();
     const hookRaw = (hookMsg.message?.text ?? "").trim();
     const webhookUrl = hookRaw && hookRaw !== "-" ? hookRaw : null;
     if (webhookUrl && !/^https?:\/\//i.test(webhookUrl)) {
-      await ctx.reply("Вебхук должен начинаться с http:// или https://. Заявка не создана, начните заново: /partner");
+      await ctx.reply("Webhook must start with http:// or https://. Application not created — start over: /partner");
       return;
     }
 
@@ -50,18 +50,19 @@ export function createPartnerApplicationConversation(deps) {
       );
     } catch (err) {
       await ctx.reply(
-        "Не получилось создать заявку (" + escapeHtml(String(err?.detail ?? err?.message ?? err)) + "). Попробуйте позже: /partner",
+        "Could not create the application (" + escapeHtml(String(err?.detail ?? err?.message ?? err)) + "). Try again later: /partner",
         { parse_mode: "HTML" },
       );
       return;
     }
 
     await ctx.reply(
-      "✅ Заявка принята и ждёт одобрения владельца.\n\n" +
-        "Ваш API-ключ (показывается один раз, сохраните сразу):\n" +
+      "✅ Application received — waiting for the owner's approval.\n\n" +
+        "Your API key (shown once — save it now):\n" +
         `<code>${escapeHtml(created.apiKey)}</code>\n\n` +
-        "Ключ заработает после одобрения. Базовый URL: https://tron-fees-api.tronpay.me/api/b2b/v1\n" +
-        "Авторизация: Authorization: Bearer &lt;ключ&gt;",
+        "The key activates once the application is approved.\n" +
+        "Base URL: https://tron-fees-api.tronpay.me/api/b2b/v1\n" +
+        "Auth: Authorization: Bearer &lt;key&gt;",
       { parse_mode: "HTML" },
     );
 
