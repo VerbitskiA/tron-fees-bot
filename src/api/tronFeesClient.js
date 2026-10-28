@@ -162,7 +162,7 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
     },
 
     /**
-     * @param {{ name: string; contact?: string | null; contactTelegramId: number; webhookUrl?: string | null }} payload
+     * @param {{ name: string; contact?: string | null; contactTelegramId: number; webhookUrl?: string | null; source?: string | null }} payload
      */
     async createPartner(payload) {
       return /** @type {Promise<PartnerCreated>} */ (
@@ -174,6 +174,7 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
             contactTelegramId: payload.contactTelegramId,
             status: "Pending",
             webhookUrl: payload.webhookUrl ?? null,
+            source: payload.source ?? null,
           },
         })
       );
@@ -319,6 +320,7 @@ export function createTronFeesClient({ baseUrl, apiKey }) {
  *   name: string;
  *   contact: string | null;
  *   contactTelegramId: number | null;
+ *   source: string | null;
  *   status: string;
  *   webhookUrl: string | null;
  *   createdAt: string;

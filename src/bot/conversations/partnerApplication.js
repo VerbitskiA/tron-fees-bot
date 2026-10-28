@@ -1,13 +1,13 @@
 import { escapeHtml } from "../htmlEscape.js";
 
 /**
- * Partner self-serve application wizard: service name → optional webhook URL → key shown once.
+ * Partner self-serve application wizard: service name → optional source → optional webhook URL → key shown once.
  *
  * @param {{
  *   api: import("../../api/tronFeesClient.js").TronFeesApi;
  *   config: import("../../config.js").config;
  *   ownerId: number;
- *   notifyOwnerOfApplication: (partner: {partnerId: string; name: string; contactTelegramId: number}) => Promise<void>;
+ *   notifyOwnerOfApplication: (partner: {partnerId: string; name: string; contactTelegramId: number; source: string | null}) => Promise<void>;
  * }} deps
  */
 export function createPartnerApplicationConversation(deps) {
@@ -15,7 +15,7 @@ export function createPartnerApplicationConversation(deps) {
   return async function partnerApplication(conversation, ctx) {
     await ctx.reply(
       "TronVolt partner application (Energy rental API).\n\n" +
-        "1/2 — What is your service called? (one message, up to 200 characters)",
+        "1/3 — What is your service called? (one message, up to 200 characters)",
     );
 
     const nameMsg = await conversation.wait();
@@ -26,7 +26,15 @@ export function createPartnerApplicationConversation(deps) {
     }
 
     await ctx.reply(
-      `2/2 — Webhook URL for order notifications (optional, can be changed later in the cabinet).\n` +
+      `2/3 — Where did you hear about us? (optional — a name, channel or link)\n` +
+        `Send "-" to skip.`,
+    );
+    const sourceMsg = await conversation.wait();
+    const sourceRaw = (sourceMsg.message?.text ?? "").trim();
+    const source = sourceRaw && sourceRaw !== "-" ? sourceRaw.slice(0, 200) : null;
+
+    await ctx.reply(
+      `3/3 — Webhook URL for order notifications (optional, can be changed later in the cabinet).\n` +
         `Send https://… or "-" to skip.`,
     );
     const hookMsg = await conversation.wait();
@@ -46,6 +54,7 @@ export function createPartnerApplicationConversation(deps) {
           contact: ctx.from?.username ? `@${ctx.from.username}` : null,
           contactTelegramId: ctx.from?.id ?? 0,
           webhookUrl,
+          source,
         }),
       );
     } catch (err) {
@@ -71,6 +80,7 @@ export function createPartnerApplicationConversation(deps) {
         partnerId: created.partnerId,
         name,
         contactTelegramId: ctx.from?.id ?? 0,
+        source,
       }),
     );
   };

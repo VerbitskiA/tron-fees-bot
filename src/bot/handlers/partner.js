@@ -354,13 +354,14 @@ export async function handlePendingTopUpAmount(ctx, deps) {
  * @param {{ api: import("../../api/tronFeesClient.js").TronFeesApi; ownerId: number }} deps
  */
 export function createOwnerNotifier(bot, deps) {
-  return async function notifyOwnerOfApplication({ partnerId, name, contactTelegramId }) {
+  return async function notifyOwnerOfApplication({ partnerId, name, contactTelegramId, source }) {
     lastApplicationAt.set(contactTelegramId, Date.now());
     void umami.track("partner_application_submitted", { uid: contactTelegramId, name: truncate(name, 100) });
+    const sourceLine = source ? `\n📍 Source: ${truncate(source)}` : "";
     try {
       await bot.api.sendMessage(
         deps.ownerId,
-        `🤝 New partner application:\n${truncate(name)} (tg:${contactTelegramId})`,
+        `🤝 New partner application:\n${truncate(name)} (tg:${contactTelegramId})${sourceLine}`,
         {
           reply_markup: new InlineKeyboard()
             .text("✅ Approve", CB.approve(partnerId))
